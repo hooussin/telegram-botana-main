@@ -41,7 +41,7 @@ sys.excepthook = _unhandled_exception_hook
 # ---------------------------------------------------------
 def check_api_token(token):
     try:
-        test_bot = telebot.TeleBot(token)
+        test_bot = telebot.TeleBot(API_TOKEN)
         me = test_bot.get_me()
         print(f"✅ التوكن سليم. هوية البوت: @{me.username} (ID: {me.id})")
         return True
