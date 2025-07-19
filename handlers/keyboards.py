@@ -8,7 +8,7 @@ def main_menu():
         types.KeyboardButton("💳 شحن محفظتي"),
         types.KeyboardButton("💰 محفظتي"),
         types.KeyboardButton("🛠️ الدعم الفني"),
-        types.KeyboardButton("🔄 ابدأ من جديد"),
+        types.KeyboardButton("✨ ستارت"),
         types.KeyboardButton("🌐 صفحتنا")
     )
     return markup
