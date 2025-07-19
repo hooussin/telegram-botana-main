@@ -37,7 +37,7 @@ def transfers_menu():
     return markup
 
 def game_categories():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=3)
     markup.add(
         types.KeyboardButton("🎯 شحن شدات ببجي العالمية"),
         types.KeyboardButton("🔥 شحن جواهر فري فاير"),
@@ -65,7 +65,7 @@ def cash_transfer_menu():
         types.KeyboardButton("تحويل إلى أم تي إن كاش"),
         types.KeyboardButton("تحويل إلى شام كاش"),
         types.KeyboardButton("⬅️ رجوع"),
-        types.KeyboardButton("🔄 ابدأ من جديد")
+        types.KeyboardButton("✨ ستارت")
     )
     return markup
 
@@ -96,7 +96,7 @@ def wallet_menu():
         types.KeyboardButton("📑 سجل التحويلات"),
         types.KeyboardButton("🔁 تحويل من محفظتك إلى محفظة عميل آخر"),
         types.KeyboardButton("⬅️ رجوع"),
-        types.KeyboardButton("🔄 ابدأ من جديد")
+        types.KeyboardButton("✨ ستارت")
     )
     return markup
 
