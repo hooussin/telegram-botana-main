@@ -14,7 +14,7 @@ from database.db import get_table
 from config import API_TOKEN
 import telebot
 
-bot = telebot.TeleBot(TOKEN)  # أضفت هذا السطر لتعريف bot
+bot = telebot.TeleBot(API_TOKEN)  # أضفت هذا السطر لتعريف bot
 
 # ============= إضافة لمسح الطلب المعلق للعميل =============
 def clear_pending_request(user_id):
