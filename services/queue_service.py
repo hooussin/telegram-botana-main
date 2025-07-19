@@ -14,7 +14,7 @@ def process_queue(bot):
             get_table("pending_requests")
             .select("*")
             .eq("status", "pending")
-            .order("created_at", asc=True)
+            .order("created_at")
             .limit(1)
             .execute()
         )
