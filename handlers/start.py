@@ -1,12 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-start.py  (ستارت ينظّف العمليات المعلّقة + زر جديد)
-مع تحسينات:
-- تسجيل الأخطاء logging
-- كاش مؤقت للتحقق من الاشتراك
-- حماية من السبام
-"""
-
 import logging
 import time
 from telebot import types
@@ -14,33 +5,28 @@ from handlers import keyboards
 from config import BOT_NAME, FORCE_SUB_CHANNEL_USERNAME
 from services.wallet_service import register_user_if_not_exist
 
-# ---- إعدادات الواجهة ----
-START_BTN_TEXT = "🚀 ستارت جديد"
+START_BTN_TEXT = "✨ ستارت"
 START_BTN_TEXT_SUB = "✅ تم الاشتراك"
 SUB_BTN_TEXT = "🔔 اشترك الآن في القناة"
 
 CB_START = "cb_start_main"
 CB_CHECK_SUB = "cb_check_sub"
 
-# ---- كاش اشتراك تيليجرام + Rate Limiting ----
 _sub_status_cache = {}
-_sub_status_ttl = 60  # ثانية (مدة بقاء حالة الاشتراك في الكاش)
+_sub_status_ttl = 60
 _user_start_limit = {}
-_rate_limit_seconds = 5  # عدد ثواني بين كل /start من نفس المستخدم
+_rate_limit_seconds = 5
 
-# ---- تنظيف العمليات المعلّقة ----
 def _reset_user_flows(user_id: int):
     try:
         from handlers import internet_providers
     except Exception as e:
         logging.error(f"[start.py] import error: {e}")
         return
-
     try:
         internet_providers.user_net_state.pop(user_id, None)
     except Exception as e:
         logging.warning(f"[start.py] user_net_state cleanup error: {e}")
-
     try:
         po = getattr(internet_providers, "pending_orders", None)
         if isinstance(po, dict):
@@ -53,7 +39,7 @@ def _reset_user_flows(user_id: int):
     except Exception as e:
         logging.warning(f"[start.py] pending_orders main cleanup: {e}")
 
-# ---- لوحات الاشتراك ----
+# --- لوحة تحقق الاشتراك فقط (بدون زر ستارت هنا) ---
 def _sub_inline_kb():
     kb = types.InlineKeyboardMarkup(row_width=1)
     if FORCE_SUB_CHANNEL_USERNAME:
@@ -64,24 +50,21 @@ def _sub_inline_kb():
             )
         )
     kb.add(types.InlineKeyboardButton(START_BTN_TEXT_SUB, callback_data=CB_CHECK_SUB))
-    kb.add(types.InlineKeyboardButton(START_BTN_TEXT, callback_data=CB_START))
     return kb
 
+# --- لوحة ستارت فقط بعد التأكد من الاشتراك ---
 def _welcome_inline_kb():
     kb = types.InlineKeyboardMarkup(row_width=1)
     kb.add(types.InlineKeyboardButton(START_BTN_TEXT, callback_data=CB_START))
     return kb
 
-# ---- كاش تحقق الاشتراك ----
 def is_user_subscribed(bot, user_id):
     now = time.time()
-    # تحقق من الكاش أولاً
     cached = _sub_status_cache.get(user_id)
     if cached:
         status, last_check = cached
         if now - last_check < _sub_status_ttl:
             return status
-
     try:
         result = bot.get_chat_member(FORCE_SUB_CHANNEL_USERNAME, user_id)
         status = result.status in ["member", "creator", "administrator"]
@@ -89,7 +72,6 @@ def is_user_subscribed(bot, user_id):
         return status
     except Exception as e:
         logging.error(f"[start.py] Error get_chat_member: {e}", exc_info=True)
-        # نعتبره غير مشترك في حال فشل التحقق (أو غير متاح مؤقتاً)
         _sub_status_cache[user_id] = (False, now)
         return False
 
@@ -99,8 +81,6 @@ def register(bot, user_history):
     def send_welcome(message):
         user_id = message.from_user.id
         now = time.time()
-
-        # حماية سبام: Rate limiting
         last = _user_start_limit.get(user_id, 0)
         if now - last < _rate_limit_seconds:
             try:
@@ -112,7 +92,7 @@ def register(bot, user_history):
 
         _reset_user_flows(user_id)
 
-        # تحقق الاشتراك مع الكاش
+        # تحقق الاشتراك فقط هنا
         if FORCE_SUB_CHANNEL_USERNAME:
             if not is_user_subscribed(bot, user_id):
                 try:
@@ -171,7 +151,6 @@ def register(bot, user_history):
         user_id = call.from_user.id
         name = getattr(call.from_user, "full_name", None) or call.from_user.first_name
         _reset_user_flows(user_id)
-
         try:
             register_user_if_not_exist(user_id, name)
         except Exception as e:
@@ -187,50 +166,31 @@ def register(bot, user_history):
         except Exception as e:
             logging.error(f"[start.py] cb_start_main: {e}")
 
-    # ---- توافقية: نصوص قديمة ----
-    @bot.message_handler(func=lambda msg: msg.text == "🚀 ابدأ بالتسوق العالمي")
-    def enter_main_menu(msg):
-        user_id = msg.from_user.id
-        name = getattr(msg.from_user, "full_name", None) or msg.from_user.first_name
-        _reset_user_flows(user_id)
-
-        try:
-            register_user_if_not_exist(user_id, name)
-            bot.send_message(
-                msg.chat.id,
-                "✨ تم تسجيلك بنجاح! هذه القائمة الرئيسية.",
-                reply_markup=keyboards.main_menu()
-            )
-        except Exception as e:
-            logging.error(f"[start.py] enter_main_menu: {e}")
-
-    @bot.message_handler(func=lambda msg: msg.text == "🔄 ابدأ من جديد")
-    def restart_user(msg):
-        send_welcome(msg)
-
-    @bot.message_handler(func=lambda msg: msg.text == "🌐 صفحتنا")
-    def send_links(msg):
-        user_id = msg.from_user.id
-        user_history.setdefault(user_id, []).append("send_links")
-        text = (
-            "🌐 روابط صفحتنا:\n\n"
-            "🔗 موقعنا الإلكتروني: https://example.com\n"
-            "📘 فيسبوك: https://facebook.com/yourpage\n"
-            "▶️ يوتيوب: https://youtube.com/yourchannel\n"
-            "🎮 كيك: https://kick.com/yourchannel"
+    # ---- روابط / تعليمات / رجوع ----
+    @bot.message_handler(commands=['help'])
+    def send_help(message):
+        bot.send_message(
+            message.chat.id,
+            "📝 للمساعدة والدعم، راسل الإدارة على الخاص أو تحقق من القناة الرسمية.",
+            reply_markup=keyboards.main_menu()
         )
-        try:
-            bot.send_message(msg.chat.id, text, reply_markup=keyboards.links_menu())
-        except Exception as e:
-            logging.error(f"[start.py] send_links: {e}")
+
+    @bot.message_handler(commands=['about'])
+    def send_about(message):
+        bot.send_message(
+            message.chat.id,
+            f"🤖 هذا البوت من تطوير {BOT_NAME}.\n"
+            "نحن نقدم أفضل الخدمات بأقل الأسعار!",
+            reply_markup=keyboards.main_menu()
+        )
 
     @bot.message_handler(func=lambda msg: msg.text == "⬅️ رجوع")
-    def go_back(msg):
-        _reset_user_flows(msg.from_user.id)
-        try:
-            bot.send_message(msg.chat.id, "⬅️ تم الرجوع للقائمة الرئيسية", reply_markup=keyboards.main_menu())
-        except Exception as e:
-            logging.error(f"[start.py] go_back: {e}")
+    def back_to_main_menu(message):
+        bot.send_message(
+            message.chat.id,
+            "تم الرجوع إلى القائمة الرئيسية.",
+            reply_markup=keyboards.main_menu()
+        )
 
 # ---- رسالة الترحيب ----
 WELCOME_MESSAGE = (
@@ -248,5 +208,5 @@ WELCOME_MESSAGE = (
     "2️⃣ *سيتم حذف محفظتك* إذا لم تقم بأي عملية شراء خلال 40 يومًا.\n"
     "3️⃣ *لا تراسل الإدارة* إلا في حالة الطوارئ!\n\n"
     "🔔 *هل أنت جاهز؟* لأننا على استعداد تام لتلبية احتياجاتك!\n"
-    "👇 اضغط على زر 🚀 للمتابعة."
+    "👇 اضغط على زر ✨ للمتابعة."
 )
