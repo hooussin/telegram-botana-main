@@ -1,6 +1,7 @@
 from telebot import types
 from datetime import datetime
 from config import ADMINS, ADMIN_MAIN_ID
+from services.wallet_service import register_user_if_not_exist
 from services.wallet_service import (
     get_all_products, get_product_by_id, get_balance, get_purchases, get_deposit_transfers
 )
