@@ -1,5 +1,5 @@
 from telebot import types
-from handlers.wallet import register_user_if_not_exist
+from services.wallet_service import register_user_if_not_exist
 from config import BOT_NAME
 from handlers import keyboards
 from database.models.product import Product
