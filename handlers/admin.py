@@ -11,7 +11,7 @@ import json
 import os
 import re
 from database.db import get_table
-from config import TOKEN  # أضفت هذا السطر، تأكد أن لديك TOKEN في config.py
+from config import API_TOKEN
 import telebot
 
 bot = telebot.TeleBot(TOKEN)  # أضفت هذا السطر لتعريف bot
