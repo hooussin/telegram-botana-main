@@ -3,7 +3,8 @@ from datetime import datetime
 from config import ADMINS, ADMIN_MAIN_ID
 from services.wallet_service import register_user_if_not_exist
 from services.wallet_service import (
-    get_all_products, get_product_by_id, get_balance, get_purchases, get_deposit_transfers
+    get_all_products, get_product_by_id, get_balance, register_user_if_not_exist,
+    add_balance, get_purchases, get_deposit_transfers
 )
 from services.cleanup_service import delete_inactive_users
 from services.recharge_service import validate_recharge_code
