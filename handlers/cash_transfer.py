@@ -144,22 +144,14 @@ def register(bot, history):
         bot.edit_message_text("❌ تم إلغاء العملية.", call.message.chat.id, call.message.message_id)
         user_states.pop(user_id, None)
 
-    @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id, {}).get("step") == "awaiting_beneficiary_name")
-    def get_beneficiary_name(msg):
-        user_id = msg.from_user.id
-        user_states[user_id]["beneficiary_name"] = msg.text.strip()
-        user_states[user_id]["step"] = "confirm_beneficiary_name"
+    @bot.callback_query_handler(func=lambda call: call.data == "commission_confirm")
+    def commission_confirmed(call):
+        user_id = call.from_user.id
+        user_states[user_id]["step"] = "awaiting_number"
         kb = make_inline_buttons(
-            ("❌ إلغاء", "company_commission_cancel"),
-            ("✏️ تعديل", "edit_beneficiary_name"),
-            ("✔️ تأكيد", "beneficiary_name_confirm")
+            ("❌ إلغاء", "commission_cancel")
         )
-        logging.info(f"[COMPANY][{user_id}] أكتب الرقم المراد التحويل له: {msg.text.strip()}")
-        bot.send_message(
-            msg.chat.id,
-            f"👤 الاسم المدخل: {msg.text}\n\nهل تريد المتابعة؟",
-            reply_markup=kb
-        )
+        bot.edit_message_text("📲 أكتب الرقم المراد التحويل له:", call.message.chat.id, call.message.message_id, reply_markup=kb)
 
     @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id, {}).get("step") == "awaiting_number")
     def get_target_number(msg):
