@@ -6,6 +6,7 @@ from services.wallet_service import (
     has_sufficient_balance, transfer_balance, get_table,
     register_user_if_not_exist,  # ✅ الاستيراد الصحيح
     _select_single,  # لاستعماله في التحقق من العميل
+    get_transfers,   # ✅ الاستيراد الصحيح الجديد
 )
 import logging
 
@@ -37,7 +38,7 @@ def show_purchases(bot, message, history=None):
     user_id = message.from_user.id
     name = message.from_user.full_name
     register_user_if_not_exist(user_id, name)
-    purchases = get_purchases(user_id)   # ← هذا الصح
+    purchases = get_purchases(user_id)  # الصحيح هنا
 
     if history is not None:
         history.setdefault(user_id, []).append("wallet")
@@ -48,13 +49,12 @@ def show_purchases(bot, message, history=None):
         text = "🛍️ مشترياتك المقبولة:\n" + "\n".join(purchases)
         bot.send_message(message.chat.id, text, reply_markup=keyboards.wallet_menu())
 
-
 # ✅ عرض سجل التحويلات
 def show_transfers(bot, message, history=None):
     user_id = message.from_user.id
     name = message.from_user.full_name
     register_user_if_not_exist(user_id, name)
-    transfers = get_transfers(user_id)
+    transfers = get_transfers(user_id)  # الصحيح هنا
 
     if history is not None:
         history.setdefault(user_id, []).append("wallet")
