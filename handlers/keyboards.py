@@ -8,7 +8,7 @@ def main_menu():
         types.KeyboardButton("💳 شحن محفظتي"),
         types.KeyboardButton("💰 محفظتي"),
         types.KeyboardButton("🛠️ الدعم الفني"),
-        types.KeyboardButton("✨ ستارت"),
+        types.KeyboardButton("/start"),
         types.KeyboardButton("🌐 صفحتنا")
     )
     return markup
@@ -54,7 +54,7 @@ def recharge_menu():
         types.KeyboardButton("📲 شام كاش"),
         types.KeyboardButton("💳 Payeer"),
         types.KeyboardButton("⬅️ رجوع"),
-        types.KeyboardButton("🔄 ابدأ من جديد")
+        types.KeyboardButton("/start")
     )
     return markup
 
@@ -65,7 +65,7 @@ def cash_transfer_menu():
         types.KeyboardButton("تحويل إلى أم تي إن كاش"),
         types.KeyboardButton("تحويل إلى شام كاش"),
         types.KeyboardButton("⬅️ رجوع"),
-        types.KeyboardButton("✨ ستارت")
+        types.KeyboardButton("/start")
     )
     return markup
 
@@ -76,7 +76,7 @@ def companies_transfer_menu():
         types.KeyboardButton("شركة الفؤاد"),
         types.KeyboardButton("شركة شخاشير"),
         types.KeyboardButton("⬅️ رجوع"),
-        types.KeyboardButton("🔄 ابدأ من جديد")
+        types.KeyboardButton("/start")
     )
     return markup
 
@@ -96,7 +96,7 @@ def wallet_menu():
         types.KeyboardButton("📑 سجل التحويلات"),
         types.KeyboardButton("🔁 تحويل من محفظتك إلى محفظة عميل آخر"),
         types.KeyboardButton("⬅️ رجوع"),
-        types.KeyboardButton("✨ ستارت")
+        types.KeyboardButton("/start")
     )
     return markup
 
