@@ -120,7 +120,7 @@ def register_companies_transfer(bot, history):
     def edit_beneficiary_name(call):
         user_id = call.from_user.id
         user_states[user_id]["step"] = "awaiting_beneficiary_name"
-        bot.send_message(call.message.chat.id, "👤 أعد إرسال اسم المستفيد (الكنية الاسم ابن الأب):")
+        bot.send_message(call.message.chat.id, "👤 أعد إرسال اسم المستفيد (الاسم الكنية ابن الأب):")
 
     @bot.callback_query_handler(func=lambda call: call.data == "beneficiary_name_confirm")
     def beneficiary_name_confirm(call):
