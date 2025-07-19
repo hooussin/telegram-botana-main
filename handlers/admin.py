@@ -11,6 +11,10 @@ import json
 import os
 import re
 from database.db import get_table
+from config import TOKEN  # أضفت هذا السطر، تأكد أن لديك TOKEN في config.py
+import telebot
+
+bot = telebot.TeleBot(TOKEN)  # أضفت هذا السطر لتعريف bot
 
 # ============= إضافة لمسح الطلب المعلق للعميل =============
 def clear_pending_request(user_id):
