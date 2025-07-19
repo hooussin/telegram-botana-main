@@ -89,7 +89,7 @@ def syrian_balance_menu():
     return markup
 
 def wallet_menu():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=3)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     markup.add(
         types.KeyboardButton("💰 محفظتي"),
         types.KeyboardButton("🛍️ مشترياتي"),
