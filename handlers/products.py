@@ -4,7 +4,7 @@ from services.wallet_service import get_balance
 from config import BOT_NAME
 from handlers import keyboards
 from database.models.product import Product
-from services.wallet_service import get_all_products, get_product_by_id, add_purchase, deduct_balance
+from services.wallet_service import get_all_products, get_balance, get_product_by_id, add_purchase, deduct_balance
 import logging
 
 # استدعاء عميل supabase
