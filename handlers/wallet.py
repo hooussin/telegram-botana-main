@@ -37,7 +37,7 @@ def show_purchases(bot, message, history=None):
     user_id = message.from_user.id
     name = message.from_user.full_name
     register_user_if_not_exist(user_id, name)
-    transfers = get_deposit_transfers(user_id)
+    purchases = get_purchases(user_id)   # ← هذا الصح
 
     if history is not None:
         history.setdefault(user_id, []).append("wallet")
@@ -47,6 +47,7 @@ def show_purchases(bot, message, history=None):
     else:
         text = "🛍️ مشترياتك المقبولة:\n" + "\n".join(purchases)
         bot.send_message(message.chat.id, text, reply_markup=keyboards.wallet_menu())
+
 
 # ✅ عرض سجل التحويلات
 def show_transfers(bot, message, history=None):
