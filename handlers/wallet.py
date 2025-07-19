@@ -2,8 +2,8 @@ from telebot import types
 from config import BOT_NAME
 from handlers import keyboards
 from services.wallet_service import (
-    get_balance, add_balance, deduct_balance, get_purchases, get_transfers,
-    has_sufficient_balance, get_deposit_transfers, transfer_balance, get_table,
+    get_balance, add_balance, deduct_balance, get_purchases, get_deposit_transfers,
+    has_sufficient_balance, transfer_balance, get_table,
     register_user_if_not_exist,  # ✅ الاستيراد الصحيح
     _select_single,  # لاستعماله في التحقق من العميل
 )
@@ -37,7 +37,7 @@ def show_purchases(bot, message, history=None):
     user_id = message.from_user.id
     name = message.from_user.full_name
     register_user_if_not_exist(user_id, name)
-    purchases = get_purchases(user_id)
+    transfers = get_deposit_transfers(user_id)
 
     if history is not None:
         history.setdefault(user_id, []).append("wallet")
