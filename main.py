@@ -9,7 +9,7 @@ import threading
 import http.server
 import socketserver
 
-PORT = 10001
+PORT = 10100
 
 def run_dummy_server():
     handler = http.server.SimpleHTTPRequestHandler
