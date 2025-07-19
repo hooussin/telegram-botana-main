@@ -164,3 +164,8 @@ def get_all_products():
 def get_product_by_id(product_id: int):
     response = get_table(PRODUCTS_TABLE).select("*").eq("id", product_id).limit(1).execute()
     return response.data[0] if response.data else None
+
+def get_product_by_id(product_id: int):
+    response = get_table(PRODUCTS_TABLE).select("*").eq("id", product_id).limit(1).execute()
+    return response.data[0] if response.data else None
+ 
