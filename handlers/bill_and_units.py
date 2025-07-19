@@ -1,9 +1,14 @@
 from telebot import types
 import math  # added for pagination support
 import logging
-from services.wallet_service import get_balance
-from services.wallet_service import register_user_if_not_exist
-from services.wallet_service import add_purchase, has_sufficient_balance
+from services.wallet_service import (
+    get_balance,
+    deduct_balance,
+    add_balance,
+    register_user_if_not_exist,
+    add_purchase,
+    has_sufficient_balance,
+)
 from config import ADMIN_MAIN_ID
 
 # --- قوائم المنتجات (وحدات) وأسعارها (لم يتم تعديل القيم) ---
