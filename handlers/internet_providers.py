@@ -15,8 +15,13 @@
 
 from telebot import types
 from database.models.product import Product
-from services.wallet_service import register_user_if_not_exist
-from services.wallet_service import add_purchase, get_balance, has_sufficient_balance
+from services.wallet_service import (
+    register_user_if_not_exist,
+    add_purchase,
+    get_balance,
+    has_sufficient_balance,
+    deduct_balance,
+)
 from config import ADMIN_MAIN_ID
 import logging
 
