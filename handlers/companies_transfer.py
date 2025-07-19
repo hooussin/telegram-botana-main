@@ -94,7 +94,7 @@ def register_companies_transfer(bot, history):
         )
         logging.info(f"[COMPANY][{user_id}] وافق على العمولة، ينتظر اسم المستفيد")
         bot.edit_message_text(
-            "👤 أرسل اسم المستفيد (الكنية الاسم ابن الأب):",
+            "👤 أرسل اسم المستفيد (الاسم الكنية ابن الأب):",
             call.message.chat.id, call.message.message_id,
             reply_markup=kb
         )
