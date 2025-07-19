@@ -168,4 +168,8 @@ def get_product_by_id(product_id: int):
 def get_product_by_id(product_id: int):
     response = get_table(PRODUCTS_TABLE).select("*").eq("id", product_id).limit(1).execute()
     return response.data[0] if response.data else None
- 
+
+# الدالة المطلوبة لتصحيح الاستيراد
+def _select_single(table_name, field, value):
+    response = get_table(table_name).select(field).eq(field, value).limit(1).execute()
+    return response.data[0][field] if response.data else None
