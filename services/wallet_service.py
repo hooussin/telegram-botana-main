@@ -110,11 +110,9 @@ def transfer_balance(from_user_id: int, to_user_id: int, amount: int, fee: int =
 # المشتريات
 def get_purchases(user_id: int, limit: int = 10):
     table = get_table(PURCHASES_TABLE)
-    now_str = datetime.utcnow().isoformat()
     response = (
         table.select("product_name", "price", "created_at", "player_id", "expire_at")
         .eq("user_id", user_id)
-        .gte("expire_at", now_str)
         .order("created_at", desc=True)
         .limit(limit)
         .execute()
@@ -139,7 +137,25 @@ def add_purchase(user_id: int, product_id: int, product_name: str, price: int, p
     get_table(PURCHASES_TABLE).insert(data).execute()
     deduct_balance(user_id, price, f"شراء {product_name}")
 
-# سجل التحويلات المالية (فقط الإيداعات)
+# سجل التحويلات المالية (كل العمليات المالية)
+def get_transfers(user_id: int, limit: int = 10):
+    response = (
+        get_table(TRANSACTION_TABLE)
+        .select("description", "amount", "timestamp")
+        .eq("user_id", user_id)
+        .order("timestamp", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    transfers = []
+    for row in response.data or []:
+        ts = row["timestamp"][:19].replace("T", " ")
+        amount = row["amount"]
+        desc = row["description"]
+        transfers.append(f"{desc} ({amount:+,} ل.س) في {ts}")
+    return transfers
+
+# سجل الإيداعات فقط (في حال استخدمته في مكان آخر)
 def get_deposit_transfers(user_id: int, limit: int = 10):
     response = (
         get_table(TRANSACTION_TABLE)
@@ -165,9 +181,10 @@ def get_product_by_id(product_id: int):
     response = get_table(PRODUCTS_TABLE).select("*").eq("id", product_id).limit(1).execute()
     return response.data[0] if response.data else None
 
-def get_product_by_id(product_id: int):
-    response = get_table(PRODUCTS_TABLE).select("*").eq("id", product_id).limit(1).execute()
-    return response.data[0] if response.data else None
+# الدالة المطلوبة لتصحيح الاستيراد
+def _select_single(table_name, field, value):
+    response = get_table(table_name).select(field).eq(field, value).limit(1).execute()
+    return response.data[0][field] if response.data else None
 
 # الدالة المطلوبة لتصحيح الاستيراد
 def _select_single(table_name, field, value):
