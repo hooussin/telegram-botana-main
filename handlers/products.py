@@ -235,7 +235,12 @@ def setup_inline_handlers(bot, admin_ids):
                 f"🎮 آيدي اللاعب: `{player_id}`\n"
                 f"💵 السعر: {price_syp:,} ل.س"
             )
-            bot.send_message(admin_id, admin_msg, parse_mode="Markdown", reply_markup=admin_keyboard)
+            add_pending_request(
+                user_id=user_id,
+                username=call.from_user.username,
+                request_text=admin_msg
+            )
+bot.send_message(admin_id, admin_msg, parse_mode="Markdown", reply_markup=admin_keyboard)
 
     @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_approve_") or c.data.startswith("admin_reject_"))
     def on_admin_action(call):
