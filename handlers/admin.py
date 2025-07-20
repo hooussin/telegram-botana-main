@@ -2,6 +2,7 @@ from telebot import types
 from datetime import datetime
 from config import ADMINS, ADMIN_MAIN_ID
 from services.wallet_service import register_user_if_not_exist
+from services.queue_service import add_pending_request
 from services.wallet_service import (
     get_all_products, get_product_by_id, get_balance, register_user_if_not_exist,
     add_balance, get_purchases, get_deposit_transfers
