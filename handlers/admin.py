@@ -16,7 +16,6 @@ from services.cleanup_service import delete_inactive_users
 from services.recharge_service import validate_recharge_code
 from services.queue_service import add_pending_request
 
-
 # ============= مسح الطلب المعلق من قائمة الانتظار الداخلية =============
 def clear_pending_request(user_id):
     try:
@@ -26,21 +25,6 @@ def clear_pending_request(user_id):
         pass
 # ======================================================================
 
-# ========== هاندلرات إدارة الطابور ==========
-@bot.message_handler(func=lambda msg: msg.text and re.match(r'/done_(\d+)', msg.text))
-def handle_done(msg):
-    req_id = int(re.match(r'/done_(\d+)', msg.text).group(1))
-    get_table("pending_requests").update({"status": "done"}).eq("id", req_id).execute()
-    bot.reply_to(msg, f"✅ تم إنهاء الطلب رقم {req_id}")
-
-@bot.message_handler(func=lambda msg: msg.text and re.match(r'/cancel_(\d+)', msg.text))
-def handle_cancel(msg):
-    req_id = int(re.match(r'/cancel_(\d+)', msg.text).group(1))
-    get_table("pending_requests").update({"status": "cancelled"}).eq("id", req_id).execute()
-    bot.reply_to(msg, f"🚫 تم إلغاء الطلب رقم {req_id}")
-# ==========================================
-
-# ========== ملف الأكواد السرية ==========
 SECRET_CODES_FILE = "data/secret_codes.json"
 os.makedirs("data", exist_ok=True)
 if not os.path.isfile(SECRET_CODES_FILE):
@@ -59,9 +43,22 @@ VALID_SECRET_CODES = [
     "363836369", "36313251", "646460923",
     "91914096", "78708501", "06580193"
 ]
-# =========================================
 
 def register(bot, history):
+    # ========== هاندلرات إدارة الطابور ==========
+    @bot.message_handler(func=lambda msg: msg.text and re.match(r'/done_(\d+)', msg.text))
+    def handle_done(msg):
+        req_id = int(re.match(r'/done_(\d+)', msg.text).group(1))
+        get_table("pending_requests").update({"status": "done"}).eq("id", req_id).execute()
+        bot.reply_to(msg, f"✅ تم إنهاء الطلب رقم {req_id}")
+
+    @bot.message_handler(func=lambda msg: msg.text and re.match(r'/cancel_(\d+)', msg.text))
+    def handle_cancel(msg):
+        req_id = int(re.match(r'/cancel_(\d+)', msg.text).group(1))
+        get_table("pending_requests").update({"status": "cancelled"}).eq("id", req_id).execute()
+        bot.reply_to(msg, f"🚫 تم إلغاء الطلب رقم {req_id}")
+    # ==========================================
+
     # ---------- تأكيد/رفض شحن المحفظة عبر أكواد وكلاء ----------
     @bot.callback_query_handler(func=lambda call: call.data.startswith("confirm_add_"))
     def confirm_wallet_add(call):
@@ -71,7 +68,6 @@ def register(bot, history):
             amount = int(float(amount_str))
             register_user_if_not_exist(user_id)
             add_balance(user_id, amount)
-            # تحديث حالة الـ queue إلى done
             get_table("pending_requests") \
                 .update({"status": "done"}) \
                 .eq("id", call.message.message_id) \
@@ -106,7 +102,6 @@ def register(bot, history):
         )
         bot.answer_callback_query(call.id, "❌ تم رفض العملية")
         bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
-        # تحديث حالة الـ queue إلى cancelled
         get_table("pending_requests") \
             .update({"status": "cancelled"}) \
             .eq("id", call.message.message_id) \
