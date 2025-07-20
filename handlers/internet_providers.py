@@ -23,6 +23,7 @@ from services.wallet_service import (
     deduct_balance,
 )
 from config import ADMIN_MAIN_ID
+from services.queue_service import add_pending_request
 import logging
 
 # ============================
