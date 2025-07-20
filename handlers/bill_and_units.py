@@ -195,6 +195,10 @@ def register_bill_and_units(bot, history):
         total = amt + fee
         balance = get_balance(user_id)
         if balance < total:
-            bot.send_message(
-                call.message.chat.id,
-                f"❌ لا يوجد لديك رصيد كافٍ.\nرصيدك الحالي: {balance:,}
+    bot.send_message(
+        call.message.chat.id,
+        f"❌ لا يوجد لديك رصيد كافٍ.\n"
+        f"رصيدك الحالي: {balance:,} ل.س\n"
+        f"المطلوب:   {total:,} ل.س"
+    )
+    return
