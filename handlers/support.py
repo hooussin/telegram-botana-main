@@ -58,7 +58,12 @@ def register(bot, history):
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("✉️ الرد عليه", callback_data=f"reply_{user_id}"))
 
-        bot.send_message(ADMIN_MAIN_ID, admin_msg, parse_mode="Markdown", reply_markup=markup)
+        add_pending_request(
+            user_id=user_id,
+            username=msg.from_user.username or "بدون اسم مستخدم",
+            request_text=admin_msg
+        )
+bot.send_message(ADMIN_MAIN_ID, admin_msg, parse_mode="Markdown", reply_markup=markup)
         bot.send_message(msg.chat.id, "✅ تم إرسال الاستفسار بنجاح. الرجاء انتظار رد الأدمن.", reply_markup=keyboards.support_menu())
         pending_support[user_id] = "waiting_admin"
 
