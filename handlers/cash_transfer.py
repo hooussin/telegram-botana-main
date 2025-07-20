@@ -272,6 +272,19 @@ def register(bot, history):
         )
         logging.info(f"[CASH][{user_id}] طلب تحويل جديد: {data}")
         bot.edit_message_text("✅ تم إرسال الطلب، بانتظار موافقة الإدارة.", call.message.chat.id, call.message.message_id)
+
+        add_pending_request(
+            user_id=user_id,
+            username=call.from_user.username,
+            request_text=(
+                f"تحويل كاش:\n"
+                f"📲 الرقم: {data.get('number')}\n"
+                f"💰 المبلغ: {amount:,} ل.س\n"
+                f"💼 الطريقة: {data.get('cash_type')}\n"
+                f"🧾 العمولة: {commission:,} ل.س\n"
+                f"✅ الإجمالي: {total:,} ل.س"
+            )
+        )
         msg_admin = bot.send_message(ADMIN_MAIN_ID, message, reply_markup=kb_admin)
         user_states[user_id]["admin_message_id"] = msg_admin.message_id
         user_states[user_id]["admin_chat_id"] = ADMIN_MAIN_ID
