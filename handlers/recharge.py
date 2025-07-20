@@ -210,7 +210,13 @@ def register(bot, history):
             )
 
             logging.info(f"[RECHARGE][{user_id}] إرسال طلب الشحن للإدارة")
-            bot.send_photo(
+            add_pending_request(
+                user_id=user_id,
+                username=call.from_user.username,
+                request_text=caption
+            )
+
+bot.send_photo(
                 ADMIN_MAIN_ID,
                 photo=data["photo"],
                 caption=caption,
