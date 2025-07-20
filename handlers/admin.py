@@ -15,7 +15,7 @@ from services.wallet_service import (
 from services.cleanup_service import delete_inactive_users
 from services.recharge_service import validate_recharge_code
 from services.queue_service import add_pending_request
-from main import bot  # استيراد البوت المركزي من main.py
+
 
 # ============= مسح الطلب المعلق من قائمة الانتظار الداخلية =============
 def clear_pending_request(user_id):
