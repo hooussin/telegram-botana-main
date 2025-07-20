@@ -5,6 +5,7 @@ from config import BOT_NAME
 from handlers import keyboards
 from database.models.product import Product
 from services.wallet_service import get_all_products, get_balance, get_product_by_id, add_purchase, deduct_balance
+from services.queue_service import add_pending_request
 import logging
 
 # استدعاء عميل supabase
