@@ -175,6 +175,10 @@ def register(bot, user_history):
             reply_markup=keyboards.main_menu()
         )
 
+    @bot.message_handler(func=lambda msg: msg.text == "🔄 ابدأ من جديد")
+    def restart_user(msg):
+        send_welcome(msg)
+        
     @bot.message_handler(commands=['about'])
     def send_about(message):
         bot.send_message(
