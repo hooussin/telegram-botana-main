@@ -102,12 +102,11 @@ def register(bot, history):
             lambda m: process_rejection(m, user_id, call),
         )
 
-    def process_rejection(msg, user_id, call):
+     def process_rejection(msg, user_id, call):
         reason = msg.text.strip()
-        bot.send_message(user_id, f"❌ تم رفض عملية الشحن.
-📝 السبب: {reason}")
+        bot.send_message(user_id, f"❌ تم رفض عملية الشحن.\\n📝 السبب: {reason}")
         bot.answer_callback_query(call.id, "❌ تم رفض العملية")
-        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+        bot.edit_message_reply_markup(call.message.chat.id, call.message
 
         # تحديث حالة الـ queue إلى cancelled
         get_table("pending_requests").update({"status": "cancelled"}).eq("id", call.message.message_id).execute()
