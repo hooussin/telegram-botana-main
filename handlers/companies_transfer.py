@@ -257,7 +257,12 @@ def register_companies_transfer(bot, history):
         )
         logging.info(f"[COMPANY][{user_id}] طلب حوالة جديد: {data}")
         bot.edit_message_text("✅ تم إرسال الطلب، بانتظار موافقة الإدارة.", call.message.chat.id, call.message.message_id)
-        msg_admin = bot.send_message(ADMIN_MAIN_ID, msg, reply_markup=kb_admin)
+        add_pending_request(
+        user_id=user_id,
+        username=call.from_user.username,
+        request_text=msg
+    )
+msg_admin = bot.send_message(ADMIN_MAIN_ID, msg, reply_markup=kb_admin)
         user_states[user_id]["admin_message_id"] = msg_admin.message_id
         user_states[user_id]["admin_chat_id"] = ADMIN_MAIN_ID
 
