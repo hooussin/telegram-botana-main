@@ -1,6 +1,7 @@
 from telebot import types
 import math
 import logging
+from database.db import get_table
 from services.wallet_service import (
     get_balance,
     deduct_balance,
@@ -37,9 +38,10 @@ MTN_UNITS = [
     {"name": "36000 وحدة", "price": 43200},
 ]
 
-user_states = {}
+# الحالة المؤقتة للمستخدمين
+user_states: dict[int, dict] = {}
 
-# -------------------- أدوات مساعدة --------------------
+# ===================== أدوات مساعدة =====================
 
 def make_inline_buttons(*buttons):
     kb = types.InlineKeyboardMarkup()
@@ -51,64 +53,11 @@ def make_inline_buttons(*buttons):
 def _unit_label(unit: dict) -> str:
     return f"{unit['name']} - {unit['price']:,} ل.س"
 
-# قوائم الردّ القديمة
-
-def units_bills_menu():
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    kb.add(
-        types.KeyboardButton("🔴 وحدات سيرياتيل"),
-        types.KeyboardButton("🔴 فاتورة سيرياتيل"),
-        types.KeyboardButton("🟡 وحدات MTN"),
-        types.KeyboardButton("🟡 فاتورة MTN"),
-    )
-    kb.add(types.KeyboardButton("⬅️ رجوع"))
-    return kb
-
-# قوائم إنلاين
-
-def units_bills_menu_inline():
-    kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton("🔴 وحدات سيرياتيل", callback_data="ubm:syr_units"))
-    kb.add(types.InlineKeyboardButton("🔴 فاتورة سيرياتيل", callback_data="ubm:syr_bill"))
-    kb.add(types.InlineKeyboardButton("🟡 وحدات MTN", callback_data="ubm:mtn_units"))
-    kb.add(types.InlineKeyboardButton("🟡 فاتورة MTN", callback_data="ubm:mtn_bill"))
-    kb.add(types.InlineKeyboardButton("⬅️ رجوع", callback_data="ubm:back"))
-    return kb
-
-# بناء كيبورد الصفحات
-
-def _build_paged_inline_keyboard(items, page: int = 0, page_size: int = 5, prefix: str = "pg", back_data: str | None = None):
-    total = len(items)
-    pages = max(1, math.ceil(total / page_size))
-    page = max(0, min(page, pages - 1))
-    start = page * page_size
-    end = start + page_size
-    slice_items = items[start:end]
-
-    kb = types.InlineKeyboardMarkup()
-    for idx, label in slice_items:
-        kb.add(types.InlineKeyboardButton(label, callback_data=f"{prefix}:sel:{idx}"))
-
-    nav = []
-    if page > 0:
-        nav.append(types.InlineKeyboardButton("◀️", callback_data=f"{prefix}:page:{page-1}"))
-    nav.append(types.InlineKeyboardButton(f"{page+1}/{pages}", callback_data=f"{prefix}:noop"))
-    if page < pages - 1:
-        nav.append(types.InlineKeyboardButton("▶️", callback_data=f"{prefix}:page:{page+1}"))
-    if nav:
-        kb.row(*nav)
-
-    if back_data:
-        kb.add(types.InlineKeyboardButton("🔙 رجوع", callback_data=back_data))
-
-    return kb, pages
-
-# التسجيل الرئيسي
+# =======================================================
 
 def register_bill_and_units(bot, history):
     """تسجيل خدمات وحدات وفواتير سيرياتيل وMTN"""
 
-    # القائمة الرئيسية
     @bot.message_handler(func=lambda msg: msg.text == "💳 تحويل وحدات فاتورة سوري")
     def open_main_menu(msg):
         user_id = msg.from_user.id
@@ -116,137 +65,136 @@ def register_bill_and_units(bot, history):
         user_states[user_id] = {"step": None}
         bot.send_message(msg.chat.id, "اختر الخدمة:", reply_markup=units_bills_menu_inline())
 
-    # توجيه إنلاين
     @bot.callback_query_handler(func=lambda call: call.data.startswith("ubm:"))
     def ubm_router(call):
-        action = call.data.split(":",1)[1]
+        action = call.data.split(":", 1)[1]
         chat_id = call.message.chat.id
         user_id = call.from_user.id
 
         if action == "syr_units":
             user_states[user_id] = {"step": "select_syr_unit"}
-            _send_syr_units_page(chat_id, 0, call.message.message_id)
+            _send_syr_units_page(chat_id, page=0, message_id=call.message.message_id)
         elif action == "syr_bill":
             user_states[user_id] = {"step": "syr_bill_number"}
-            kb = make_inline_buttons(("❌ إلغاء","cancel_all"))
-            bot.edit_message_text("📱 أدخل رقم سيرياتيل:\n", chat_id, call.message.message_id, reply_markup=kb)
+            kb = make_inline_buttons(("❌ إلغاء", "cancel_all"))
+            bot.edit_message_text("📱 أدخل رقم سيرياتيل المراد دفع فاتورته:", chat_id, call.message.message_id, reply_markup=kb)
         elif action == "mtn_units":
             user_states[user_id] = {"step": "select_mtn_unit"}
-            _send_mtn_units_page(chat_id, 0, call.message.message_id)
+            _send_mtn_units_page(chat_id, page=0, message_id=call.message.message_id)
         elif action == "mtn_bill":
             user_states[user_id] = {"step": "mtn_bill_number"}
-            kb = make_inline_buttons(("❌ إلغاء","cancel_all"))
-            bot.edit_message_text("📱 أدخل رقم MTN:\n", chat_id, call.message.message_id, reply_markup=kb)
+            kb = make_inline_buttons(("❌ إلغاء", "cancel_all"))
+            bot.edit_message_text("📱 أدخل رقم MTN المراد دفع فاتورته:", chat_id, call.message.message_id, reply_markup=kb)
         elif action == "back":
             from keyboards import main_menu as _main_menu
             bot.edit_message_text("⬅️ رجوع", chat_id, call.message.message_id)
-            bot.send_message(chat_id, "اختر:", reply_markup=_main_menu())
+            bot.send_message(chat_id, "اختر من القائمة:", reply_markup=_main_menu())
         bot.answer_callback_query(call.id)
 
-    # إرسال صفحات
-    def _send_syr_units_page(chat_id, page, message_id=None):
-        items = [(i,_unit_label(u)) for i,u in enumerate(SYRIATEL_UNITS)]
-        kb,pages = _build_paged_inline_keyboard(items,page,5,"syrunits","ubm:back")
-        text=f"اختر وحدات (صفحة {page+1}/{pages}):"
+    def _send_syr_units_page(chat_id, page: int, message_id: int | None = None):
+        items = [(idx, _unit_label(u)) for idx, u in enumerate(SYRIATEL_UNITS)]
+        kb, pages = _build_paged_inline_keyboard(items, page, page_size=5, prefix="syrunits", back_data="ubm:back")
+        text = f"اختر كمية الوحدات (صفحة {page+1}/{pages}):"
         if message_id:
-            bot.edit_message_text(text,chat_id,message_id,reply_markup=kb)
+            bot.edit_message_text(text, chat_id, message_id, reply_markup=kb)
         else:
-            bot.send_message(chat_id,text,reply_markup=kb)
+            bot.send_message(chat_id, text, reply_markup=kb)
 
-    def _send_mtn_units_page(chat_id, page, message_id=None):
-        items = [(i,_unit_label(u)) for i,u in enumerate(MTN_UNITS)]
-        kb,pages = _build_paged_inline_keyboard(items,page,5,"mtnunits","ubm:back")
-        text=f"اختر وحدات MTN (صفحة {page+1}/{pages}):"
+    def _send_mtn_units_page(chat_id, page: int, message_id: int | None = None):
+        items = [(idx, _unit_label(u)) for idx, u in enumerate(MTN_UNITS)]
+        kb, pages = _build_paged_inline_keyboard(items, page, page_size=5, prefix="mtnunits", back_data="ubm:back")
+        text = f"اختر كمية الوحدات (صفحة {page+1}/{pages}):"
         if message_id:
-            bot.edit_message_text(text,chat_id,message_id,reply_markup=kb)
+            bot.edit_message_text(text, chat_id, message_id, reply_markup=kb)
         else:
-            bot.send_message(chat_id,text,reply_markup=kb)
+            bot.send_message(chat_id, text, reply_markup=kb)
 
-    # اختيار عبر إنلاين
     @bot.callback_query_handler(func=lambda call: call.data.startswith("syrunits:"))
     def syr_units_inline_handler(call):
-        _,action,value=call.data.split(":")
-        uid=call.from_user.id;cid=call.message.chat.id
-        if action=="page": _send_syr_units_page(cid,int(value),call.message.message_id)
-        elif action=="sel":
-            unit=SYRIATEL_UNITS[int(value)]
-            user_states[uid]={"step":"syr_unit_number","unit":unit}
-            kb=make_inline_buttons(("❌ إلغاء","cancel_all"))
-            bot.edit_message_text("📱 أدخل الرقم:",cid,call.message.message_id,reply_markup=kb)
+        _, action, val = call.data.split(":")
+        chat_id = call.message.chat.id
+        user_id = call.from_user.id
+        if action == "page":
+            _send_syr_units_page(chat_id, int(val), call.message.message_id)
+        elif action == "sel":
+            unit = SYRIATEL_UNITS[int(val)]
+            user_states[user_id] = {"step": "syr_unit_number", "unit": unit}
+            kb = make_inline_buttons(("❌ إلغاء", "cancel_all"))
+            bot.edit_message_text("📱 أدخل الرقم أو الكود:", chat_id, call.message.message_id, reply_markup=kb)
         bot.answer_callback_query(call.id)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("mtnunits:"))
     def mtn_units_inline_handler(call):
-        _,action,value=call.data.split(":")
-        uid=call.from_user.id;cid=call.message.chat.id
-        if action=="page": _send_mtn_units_page(cid,int(value),call.message.message_id)
-        elif action=="sel":
-            unit=MTN_UNITS[int(value)]
-            user_states[uid]={"step":"mtn_unit_number","unit":unit}
-            kb=make_inline_buttons(("❌ إلغاء","cancel_all"))
-            bot.edit_message_text("📱 أدخل الرقم:",cid,call.message.message_id,reply_markup=kb)
+        _, action, val = call.data.split(":")
+        chat_id = call.message.chat.id
+        user_id = call.from_user.id
+        if action == "page":
+            _send_mtn_units_page(chat_id, int(val), call.message.message_id)
+        elif action == "sel":
+            unit = MTN_UNITS[int(val)]
+            user_states[user_id] = {"step": "mtn_unit_number", "unit": unit}
+            kb = make_inline_buttons(("❌ إلغاء", "cancel_all"))
+            bot.edit_message_text("📱 أدخل الرقم أو الكود:", chat_id, call.message.message_id, reply_markup=kb)
         bot.answer_callback_query(call.id)
 
-    # handlers للرسائل
-    @bot.message_handler(func=lambda m: m.text=="🔴 وحدات سيرياتيل")
-    def syr_units_menu(m):
-        uid=m.from_user.id;kb=types.ReplyKeyboardMarkup(resize_keyboard=True,row_width=2)
-        for u in SYRIATEL_UNITS: kb.add(types.KeyboardButton(_unit_label(u)))
-        kb.add(types.KeyboardButton("⬅️ رجوع"));user_states[uid]={"step":"select_syr_unit"}
-        bot.send_message(m.chat.id,"اختر:",reply_markup=kb)
+    @bot.message_handler(func=lambda msg: msg.text == "🔴 وحدات سيرياتيل")
+    def syr_units_menu(msg):
+        user_id = msg.from_user.id
+        kb = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+        for u in SYRIATEL_UNITS:
+            kb.add(types.KeyboardButton(_unit_label(u)))
+        kb.add(types.KeyboardButton("⬅️ رجوع"))
+        user_states[user_id] = {"step": "select_syr_unit"}
+        bot.send_message(msg.chat.id, "اختر كمية الوحدات:", reply_markup=kb)
 
-    @bot.message_handler(func=lambda m:user_states.get(m.from_user.id,{}).get("step")=="select_syr_unit")
-    def syr_unit_select(m):
-        uid=m.from_user.id;unit=next((u for u in SYRIATEL_UNITS if _unit_label(u)==m.text),None)
-        if not unit: return
-        user_states[uid]={"step":"syr_unit_final","unit":unit}
-        kb=make_inline_buttons(("✅ تأكيد","syr_unit_final_confirm"),("❌ إلغاء","cancel_all"))
-        bot.send_message(m.chat.id,f"تأكيد طلب {unit['name']}؟",reply_markup=kb)
+    @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id, {}).get("step") == "select_syr_unit")
+    def syr_unit_select(msg):
+        user_id = msg.from_user.id
+        unit = next((u for u in SYRIATEL_UNITS if _unit_label(u) == msg.text), None)
+        if not unit:
+            return
+        user_states[user_id] = {"step": "syr_unit_final", "unit": unit}
+        kb = make_inline_buttons(("✅ تأكيد", "syr_unit_final_confirm"), ("❌ إلغاء", "cancel_all"))
+        bot.send_message(msg.chat.id, f"تأكيد طلب {unit['name']}؟", reply_markup=kb)
 
-    # final confirm handlers
-    @bot.callback_query_handler(func=lambda c:c.data=="syr_unit_final_confirm")
+    @bot.callback_query_handler(func=lambda call: call.data == "syr_unit_final_confirm")
     def syr_unit_final_confirm(call):
-        uid=call.from_user.id;st=user_states[uid]
-        summary=f"🔴 طلب وحدات سيرياتيل:\n👤 {uid}\nوحدة {st['unit']['name']}\n"
-        add_pending_request(uid,call.from_user.username,summary)
-        bot.send_message(call.message.chat.id,"✅ تم إرسال للإدارة.")
+        user_id = call.from_user.id
+        unit = user_states[user_id]["unit"]
+        summary = (
+            f"🔴 طلب وحدات سيرياتيل:\n"
+            f"👤 المستخدم: {user_id}\n"
+            f"📱 الرقم/الكود: {user_states[user_id].get('number','')}\n"
+            f"💵 الكمية: {unit['name']}\n"
+            f"💰 السعر: {unit['price']:,} ل.س\n"
+            f"✅ بانتظار موافقة الإدارة"
+        )
+        add_pending_request(user_id, call.from_user.username, summary)
+        bot.send_message(call.message.chat.id, "✅ تم إرسال الطلب للإدارة، بانتظار الموافقة.")
 
-    @bot.callback_query_handler(func=lambda c:c.data=="mtn_unit_final_confirm")
+    @bot.callback_query_handler(func=lambda call: call.data == "mtn_unit_final_confirm")
     def mtn_unit_final_confirm(call):
-        uid=call.from_user.id;st=user_states[uid]
-        summary=f"🟡 طلب وحدات MTN:\n👤 {uid}\nوحدة {st['unit']['name']}\n"
-        add_pending_request(uid,call.from_user.username,summary)
-        bot.send_message(call.message.chat.id,"✅ تم إرسال للإدارة.")
+        user_id = call.from_user.id
+        unit = user_states[user_id]["unit"]
+        summary = (
+            f"🟡 طلب وحدات MTN:\n"
+            f"👤 المستخدم: {user_id}\n"
+            f"📱 الرقم/الكود: {user_states[user_id].get('number','')}\n"
+            f"💵 الكمية: {unit['name']}\n"
+            f"💰 السعر: {unit['price']:,} ل.س\n"
+            f"✅ بانتظار موافقة الإدارة"
+        )
+        add_pending_request(user_id, call.from_user.username, summary)
+        bot.send_message(call.message.chat.id, "✅ تم إرسال الطلب للإدارة، بانتظار الموافقة.")
 
-    @bot.callback_query_handler(func=lambda c:c.data=="final_confirm_syr_bill")
+    @bot.callback_query_handler(func=lambda call: call.data == "final_confirm_syr_bill")
     def final_confirm_syr_bill(call):
-        uid=call.from_user.id;bal=get_balance(uid);amt=user_states[uid].get('amount',0)
-        fee=user_states[uid].get('fee',0);total=amt+fee
-        if bal<total: return
-        summary=f"🔴 فاتورة سيرياتيل:\n👤 {uid}\nمبلغ {amt}\nعمولة {fee}\n"
-        add_pending_request(uid,call.from_user.username,summary)
-        bot.send_message(call.message.chat.id,"✅ تم إرسال.")
-
-    @bot.callback_query_handler(func=lambda c:c.data=="final_confirm_mtn_bill")
-    def final_confirm_mtn_bill(call):
-        uid=call.from_user.id;bal=get_balance(uid);amt=user_states[uid].get('amount',0)
-        fee=user_states[uid].get('fee',0);total=amt+fee
-        if bal<total: return
-        summary=f"🟡 فاتورة MTN:\n👤 {uid}\nمبلغ {amt}\nعمولة {fee}\n"
-        add_pending_request(uid,call.from_user.username,summary)
-        bot.send_message(call.message.chat.id,"✅ تم إرسال.")
-
-    # handlers للالغاء والانتهاء من الادمن
-    @bot.message_handler(func=lambda m:m.text and m.text.startswith("/done_"))
-    def handle_done(m):
-        rid=int(m.text.split("_")[1]);
-        get_table("pending_requests").update({"status":"done"}).eq("id",rid).execute()
-        bot.reply_to(m,f"✅ تم إنهاء {rid}")
-
-    @bot.message_handler(func=lambda m:m.text and m.text.startswith("/cancel_"))
-    def handle_cancel(m):
-        rid=int(m.text.split("_")[1]);
-        get_table("pending_requests").update({"status":"cancelled"}).eq("id",rid).execute()
-        bot.reply_to(m,f"🚫 تم إلغاء {rid}")
-
-    # احتفظ بكل الأوامر الأخرى كما كانت دون حذف
+        user_id = call.from_user.id
+        amt = user_states[user_id].get('amount', 0)
+        fee = user_states[user_id].get('fee', 0)
+        total = amt + fee
+        balance = get_balance(user_id)
+        if balance < total:
+            bot.send_message(
+                call.message.chat.id,
+                f"❌ لا يوجد لديك رصيد كافٍ.\nرصيدك الحالي: {balance:,}
