@@ -8,6 +8,12 @@ from config import API_TOKEN
 import threading
 import http.server
 import socketserver
+
+# --------- هنا ننشئ البوت والمتغيرات أولاً ----------
+bot = telebot.TeleBot(API_TOKEN, parse_mode="HTML")
+user_state = {}  # إذا كان اسم متغيرك user_state أو history
+
+# --------- بعدها استيراد الهاندلر وتسجيله ----------
 from handlers import admin
 admin.register(bot, user_state)
 
