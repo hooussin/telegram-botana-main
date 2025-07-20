@@ -149,7 +149,12 @@ def register(bot, user_state):
             call.message.message_id
         )
         # إرسال للإدارة
-        bot.send_message(ADMIN_MAIN_ID, admin_msg)
+        add_pending_request(
+            user_id=user_id,
+            username=call.from_user.username,
+            request_text=admin_msg
+        )
+bot.send_message(ADMIN_MAIN_ID, admin_msg)
 
         # إعادة المستخدم لقائمة المنتجات
         user_state[user_id] = "products_menu"
