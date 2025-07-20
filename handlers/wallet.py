@@ -8,6 +8,7 @@ from services.wallet_service import (
     _select_single,  # لاستعماله في التحقق من العميل
     get_transfers,   # ✅ الاستيراد الصحيح الجديد
 )
+from services.queue_service import add_pending_request
 import logging
 
 transfer_steps = {}
