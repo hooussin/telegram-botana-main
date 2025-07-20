@@ -41,10 +41,8 @@ def make_inline_buttons(*buttons):
         kb.add(types.InlineKeyboardButton(text, callback_data=data))
     return kb
 
-
 def _unit_label(unit: dict) -> str:
     return f"{unit['name']} - {unit['price']:,} ل.س"
-
 
 def units_bills_menu_inline():
     kb = types.InlineKeyboardMarkup()
@@ -54,7 +52,6 @@ def units_bills_menu_inline():
     kb.add(types.InlineKeyboardButton("🟡 فاتورة MTN", callback_data="ubm:mtn_bill"))
     kb.add(types.InlineKeyboardButton("⬅️ رجوع", callback_data="ubm:back"))
     return kb
-
 
 def _build_paged_inline_keyboard(items, page: int, page_size: int, prefix: str, back_data: str | None):
     total = len(items)
