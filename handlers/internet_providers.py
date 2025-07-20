@@ -358,7 +358,14 @@ def register(bot):
             f"رقم: {st['phone']}\n"
             f"المبلغ: {price:,} + عمولة {comm:,} = {total:,} ل.س"
         )
-        bot.send_message(
+        
+        add_pending_request(
+            user_id=user_id,
+            username=call.from_user.username,
+            request_text=adm_txt
+        )
+
+bot.send_message(
             ADMIN_MAIN_ID,
             adm_txt,
             parse_mode="Markdown",
