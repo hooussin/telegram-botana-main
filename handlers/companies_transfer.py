@@ -3,6 +3,7 @@ from services.wallet_service import add_purchase, get_balance, has_sufficient_ba
 from config import ADMIN_MAIN_ID
 from services.wallet_service import register_user_if_not_exist
 from handlers import keyboards
+from services.queue_service import add_pending_request
 import logging
 
 user_states = {}
