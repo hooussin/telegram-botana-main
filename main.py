@@ -8,6 +8,8 @@ from config import API_TOKEN
 import threading
 import http.server
 import socketserver
+from handlers import admin
+admin.register(bot, user_state)
 
 PORT = 10222
 
