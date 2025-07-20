@@ -17,7 +17,6 @@ from services.recharge_service import validate_recharge_code
 from services.queue_service import add_pending_request
 from main import bot  # استيراد البوت المركزي من main.py
 
-
 # ============= مسح الطلب المعلق من قائمة الانتظار الداخلية =============
 def clear_pending_request(user_id):
     try:
@@ -27,14 +26,12 @@ def clear_pending_request(user_id):
         pass
 # ======================================================================
 
-
 # ========== هاندلرات إدارة الطابور ==========
 @bot.message_handler(func=lambda msg: msg.text and re.match(r'/done_(\d+)', msg.text))
 def handle_done(msg):
     req_id = int(re.match(r'/done_(\d+)', msg.text).group(1))
     get_table("pending_requests").update({"status": "done"}).eq("id", req_id).execute()
     bot.reply_to(msg, f"✅ تم إنهاء الطلب رقم {req_id}")
-
 
 @bot.message_handler(func=lambda msg: msg.text and re.match(r'/cancel_(\d+)', msg.text))
 def handle_cancel(msg):
@@ -43,7 +40,6 @@ def handle_cancel(msg):
     bot.reply_to(msg, f"🚫 تم إلغاء الطلب رقم {req_id}")
 # ==========================================
 
-
 # ========== ملف الأكواد السرية ==========
 SECRET_CODES_FILE = "data/secret_codes.json"
 os.makedirs("data", exist_ok=True)
@@ -51,11 +47,9 @@ if not os.path.isfile(SECRET_CODES_FILE):
     with open(SECRET_CODES_FILE, "w", encoding="utf-8") as f:
         json.dump({}, f)
 
-
 def load_code_operations():
     with open(SECRET_CODES_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
-
 
 def save_code_operations(data):
     with open(SECRET_CODES_FILE, "w", encoding="utf-8") as f:
@@ -67,7 +61,6 @@ VALID_SECRET_CODES = [
 ]
 # =========================================
 
-
 def register(bot, history):
     # ---------- تأكيد/رفض شحن المحفظة عبر أكواد وكلاء ----------
     @bot.callback_query_handler(func=lambda call: call.data.startswith("confirm_add_"))
@@ -76,18 +69,14 @@ def register(bot, history):
             _, _, user_id_str, amount_str = call.data.split("_")
             user_id = int(user_id_str)
             amount = int(float(amount_str))
-
             register_user_if_not_exist(user_id)
             add_balance(user_id, amount)
-
             # تحديث حالة الـ queue إلى done
             get_table("pending_requests") \
                 .update({"status": "done"}) \
                 .eq("id", call.message.message_id) \
                 .execute()
-
             clear_pending_request(user_id)
-
             bot.send_message(user_id, f"✅ تم إضافة {amount:,} ل.س إلى محفظتك بنجاح.")
             bot.answer_callback_query(call.id, "✅ تمت الموافقة")
             bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
@@ -117,13 +106,11 @@ def register(bot, history):
         )
         bot.answer_callback_query(call.id, "❌ تم رفض العملية")
         bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
-
         # تحديث حالة الـ queue إلى cancelled
         get_table("pending_requests") \
             .update({"status": "cancelled"}) \
             .eq("id", call.message.message_id) \
             .execute()
-
         clear_pending_request(user_id)
 
     # ---------- تقرير الأكواد السرية ----------
@@ -131,12 +118,10 @@ def register(bot, history):
     def generate_report(msg):
         if msg.from_user.id not in ADMINS:
             return
-
         data = load_code_operations()
         if not data:
             bot.send_message(msg.chat.id, "📭 لا توجد أي عمليات تحويل عبر الأكواد بعد.")
             return
-
         report = "📊 تقرير عمليات الأكواد:\n"
         for code, ops in data.items():
             report += f"\n🔐 الكود: `{code}`\n"
@@ -182,19 +167,14 @@ def register(bot, history):
         except ValueError:
             bot.send_message(msg.chat.id, "❌ الرجاء إدخال مبلغ صالح.")
             return
-
         user_str = f"{msg.from_user.first_name} (@{msg.from_user.username or 'بدون_معرف'})"
         user_id = msg.from_user.id
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
-
         ops_data = load_code_operations()
         ops_data.setdefault(code, []).append({"user": user_str, "user_id": user_id, "amount": amount, "date": now})
         save_code_operations(ops_data)
-
         register_user_if_not_exist(user_id)
         add_balance(user_id, amount)
-
         bot.send_message(msg.chat.id, f"✅ تم تحويل {amount:,} ل.س إلى محفظتك عبر وكيل.")
         admin_msg = f"✅ شحن {amount:,} ل.س للمستخدم `{user_id}` عبر كود `{code}`"
         add_pending_request(user_id, msg.from_user.username, admin_msg)
-```}]}
