@@ -53,10 +53,10 @@ def register(bot, history):
             f"👤 الاسم: {name} | @{username}\n"
             f"🆔 ID: `{user_id}`\n"
             f"💬 الرسالة:\n{text}"
-    )
+        )
 
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("✉️ الرد عليه", callback_data=f"reply_{user_id}"))
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("✉️ الرد عليه", callback_data=f"reply_{user_id}"))
 
     add_pending_request(
         user_id=user_id,
