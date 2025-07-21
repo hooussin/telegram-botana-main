@@ -180,7 +180,9 @@ def register(bot, history):
             reply_markup=markup
         )
 
-    @bot.callback_query_handler(func=lambda call: call.data in ["user_confirm_recharge", "user_edit_recharge", "user_cancel_recharge"])
+    @bot.callback_query_handler(
+        func=lambda call: call.data in ["user_confirm_recharge", "user_edit_recharge", "user_cancel_recharge"]
+    )
     def handle_user_recharge_action(call):
         user_id = call.from_user.id
 
@@ -191,7 +193,7 @@ def register(bot, history):
                 bot.answer_callback_query(call.id, "لا يوجد طلب قيد المعالجة.")
                 return
 
-            name = call.from_user.full_name if hasattr(call.from_user, 'full_name') else call.from_user.first_name
+            name = call.from_user.full_name if hasattr(call.from_user, "full_name") else call.from_user.first_name
             register_user_if_not_exist(user_id, name)
 
             caption = (
@@ -205,10 +207,10 @@ def register(bot, history):
 
             markup = types.InlineKeyboardMarkup()
             markup.add(
-                types.InlineKeyboardButton("✅ قبول الشحن", callback_data=f"confirm_add_{user_id}_{data['amount']}"),
-                types.InlineKeyboardButton("❌ رفض", callback_data=f"reject_add_{user_id}")
+                types.InlineKeyboardButton("✅ قبول الشحن",  callback_data=f"confirm_add_{user_id}_{data['amount']}"),
+                types.InlineKeyboardButton("❌ رفض",        callback_data=f"reject_add_{user_id}")
             )
-
+ 
             logging.info(f"[RECHARGE][{user_id}] إرسال طلب الشحن للإدارة")
             add_pending_request(
                 user_id=user_id,
@@ -216,7 +218,7 @@ def register(bot, history):
                 request_text=caption
             )
 
-bot.send_photo(
+            bot.send_photo(
                 ADMIN_MAIN_ID,
                 photo=data["photo"],
                 caption=caption,
@@ -228,7 +230,11 @@ bot.send_photo(
                 reply_markup=keyboards.recharge_menu()
             )
             recharge_pending.add(user_id)
-            bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+            bot.edit_message_reply_markup(
+                call.message.chat.id,
+                call.message.message_id,
+                reply_markup=None
+            )
 
         elif call.data == "user_edit_recharge":
             if user_id in recharge_requests:
