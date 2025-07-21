@@ -317,7 +317,7 @@ def register_bill_and_units(bot, history):
             f"💵 {state['unit']['name']}\n"
             f"💰 {state['unit']['price']:,} ل.س"
         )
-    )
+        )
         bot.send_message(call.message.chat.id, "✅ تم إرسال الطلب للإدارة، بانتظار الموافقة.")
         bot.send_message(ADMIN_MAIN_ID, summary, reply_markup=kb_admin)
 
