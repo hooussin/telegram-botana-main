@@ -1,6 +1,7 @@
 from telebot import types
 from config import ADMIN_MAIN_ID
 from handlers import keyboards
+from services.queue_service import add_pending_request
 import logging
 
 # تخزين الطلبات التي بانتظار رد الأدمن
