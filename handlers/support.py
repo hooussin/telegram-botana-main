@@ -42,7 +42,7 @@ def register(bot, history):
         bot.edit_message_text("✉️ أرسل الآن استفسارك أو الشكوى برسالة واحدة فقط.", chat_id=call.message.chat.id, message_id=call.message.message_id)
 
     @bot.message_handler(func=lambda msg: pending_support.get(msg.from_user.id) == "waiting_message")
-        def receive_support(msg):
+    def receive_support(msg):
         user_id = msg.from_user.id
         text = msg.text
         username = msg.from_user.username or "بدون اسم مستخدم"
