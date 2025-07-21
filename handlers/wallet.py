@@ -14,7 +14,7 @@ import logging
 transfer_steps = {}
 
 # ✅ عرض المحفظة
-    def show_wallet(bot, message, history=None):
+def show_wallet(bot, message, history=None):
     user_id = message.from_user.id
     name = message.from_user.full_name
     register_user_if_not_exist(user_id, name)  # تأكد من تسجيل المستخدم
@@ -70,19 +70,19 @@ def show_transfers(bot, message, history=None):
 def register(bot, user_state):
 
     @bot.message_handler(func=lambda msg: msg.text == "💰 محفظتي")
-    def handle_wallet(msg):
+def handle_wallet(msg):
         show_wallet(bot, msg, user_state)
 
     @bot.message_handler(func=lambda msg: msg.text == "🛍️ مشترياتي")
-    def handle_purchases(msg):
+def handle_purchases(msg):
         show_purchases(bot, msg, user_state)
 
     @bot.message_handler(func=lambda msg: msg.text == "📑 سجل التحويلات")
-    def handle_transfers(msg):
+def handle_transfers(msg):
         show_transfers(bot, msg, user_state)
 
     @bot.message_handler(func=lambda msg: msg.text == "🔁 تحويل من محفظتك إلى محفظة عميل آخر")
-    def handle_transfer_notice(msg):
+def handle_transfer_notice(msg):
         user_id = msg.from_user.id
         name = msg.from_user.full_name
         register_user_if_not_exist(user_id, name)
@@ -99,7 +99,7 @@ def register(bot, user_state):
         bot.send_message(msg.chat.id, warning, reply_markup=kb)
 
     @bot.message_handler(func=lambda msg: msg.text == "✅ موافق")
-    def ask_for_target_id(msg):
+def ask_for_target_id(msg):
         bot.send_message(
             msg.chat.id,
             "🔢 أدخل رقم ID الخاص بالعميل (رقم الحساب):",
@@ -108,7 +108,7 @@ def register(bot, user_state):
         transfer_steps[msg.from_user.id] = {"step": "awaiting_id"}
 
     @bot.message_handler(func=lambda msg: transfer_steps.get(msg.from_user.id, {}).get("step") == "awaiting_id")
-    def receive_target_id(msg):
+def receive_target_id(msg):
     try:
             target_id = int(msg.text.strip())
         except:
@@ -130,7 +130,7 @@ def register(bot, user_state):
         bot.send_message(msg.chat.id, "💵 أدخل المبلغ الذي تريد تحويله:")
 
     @bot.message_handler(func=lambda msg: transfer_steps.get(msg.from_user.id, {}).get("step") == "awaiting_amount")
-    def receive_amount(msg):
+def receive_amount(msg):
         user_id = msg.from_user.id
         try:
             amount = int(msg.text.strip())
@@ -173,7 +173,7 @@ def register(bot, user_state):
 
     # زر تعديل المبلغ
     @bot.message_handler(func=lambda msg: msg.text == "✏️ تعديل المبلغ")
-    def edit_amount(msg):
+def edit_amount(msg):
         user_id = msg.from_user.id
         if transfer_steps.get(user_id, {}).get("step") == "awaiting_amount":
             bot.send_message(
@@ -191,7 +191,7 @@ def register(bot, user_state):
 
     # زر إلغاء العملية
     @bot.message_handler(func=lambda msg: msg.text == "❌ إلغاء")
-    def cancel_transfer(msg):
+def cancel_transfer(msg):
         user_id = msg.from_user.id
         bot.send_message(
             msg.chat.id,
@@ -201,7 +201,7 @@ def register(bot, user_state):
         transfer_steps.pop(user_id, None)
 
     @bot.message_handler(func=lambda msg: msg.text == "✅ تأكيد التحويل")
-    def confirm_transfer(msg):
+def confirm_transfer(msg):
         user_id = msg.from_user.id
         step = transfer_steps.get(user_id)
         if not step or step.get("step") != "awaiting_confirm":
