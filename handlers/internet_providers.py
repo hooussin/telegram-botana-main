@@ -365,7 +365,7 @@ def register(bot):
             request_text=adm_txt
         )
 
-bot.send_message(
+        bot.send_message(
             ADMIN_MAIN_ID,
             adm_txt,
             parse_mode="Markdown",
@@ -373,7 +373,7 @@ bot.send_message(
         )
 
         # لا نحذف الحالة كي لا يفقد المستخدم المعلومات؛ لكن نضع step=wait_admin
- st["step"] = "wait_admin"
+        st["step"] = "wait_admin"
 
 
     # =========================
