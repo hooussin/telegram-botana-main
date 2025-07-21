@@ -373,7 +373,7 @@ bot.send_message(
         )
 
         # لا نحذف الحالة كي لا يفقد المستخدم المعلومات؛ لكن نضع step=wait_admin
-    st["step"] = "wait_admin"
+ st["step"] = "wait_admin"
 
 
     # =========================
