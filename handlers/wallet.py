@@ -14,7 +14,7 @@ import logging
 transfer_steps = {}
 
 # ✅ عرض المحفظة
-def show_wallet(bot, message, history=None):
+    def show_wallet(bot, message, history=None):
     user_id = message.from_user.id
     name = message.from_user.full_name
     register_user_if_not_exist(user_id, name)  # تأكد من تسجيل المستخدم
@@ -109,7 +109,7 @@ def register(bot, user_state):
 
     @bot.message_handler(func=lambda msg: transfer_steps.get(msg.from_user.id, {}).get("step") == "awaiting_id")
     def receive_target_id(msg):
-        try:
+    try:
             target_id = int(msg.text.strip())
         except:
             bot.send_message(msg.chat.id, "❌ الرجاء إدخال رقم ID صحيح.")
