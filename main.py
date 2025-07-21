@@ -17,7 +17,7 @@ user_state = {}  # إذا كان اسم متغيرك user_state أو history
 from handlers import admin
 admin.register(bot, user_state)
 
-PORT = 10222
+PORT = 8081
 
 def run_dummy_server():
     handler = http.server.SimpleHTTPRequestHandler
