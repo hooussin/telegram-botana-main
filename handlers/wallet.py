@@ -11,7 +11,7 @@ from services.wallet_service import (
 from services.queue_service import add_pending_request
 import logging
 
-    transfer_steps = {}
+transfer_steps = {}
 
     # ✅ عرض المحفظة
 def show_wallet(bot, message, history=None):
