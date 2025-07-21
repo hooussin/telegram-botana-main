@@ -73,5 +73,5 @@ def register(bot, user_state):
             request_text=text
         )
      bot.send_message(ADMIN_MAIN_ID, text)
-     bot.send_message(msg.chat.id, "✅ تم إرسال طلبك للإدارة، سيتم التواصل معك قريبًا.")
-     user_wholesale_state.pop(user_id, None)
+         bot.send_message(msg.chat.id, "✅ تم إرسال طلبك للإدارة، سيتم التواصل معك قريبًا.")
+         user_wholesale_state.pop(user_id, None)
