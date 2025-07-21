@@ -21,7 +21,7 @@ def show_wallet(bot, message, history=None):
     balance = get_balance(user_id)
 
     if user_id not in history:
-    history.setdefault(user_id, []).append("wallet")  # ❌ هذا السطر غير متداخل
+        history.setdefault(user_id, []).append("wallet")  # ❌ هذا السطر غير متداخل
 
     text = (
     f"🧾 رقم حسابك: `{user_id}`\n"
