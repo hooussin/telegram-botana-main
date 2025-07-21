@@ -242,16 +242,20 @@ def setup_inline_handlers(bot, admin_ids):
             )
 bot.send_message(admin_id, admin_msg, parse_mode="Markdown", reply_markup=admin_keyboard)
 
-    @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_approve_") or c.data.startswith("admin_reject_"))
+    @bot.callback_query_handler(
+        func=lambda c: c.data.startswith("admin_approve_") or c.data.startswith("admin_reject_")
+    )
     def on_admin_action(call):
         user_id = int(call.data.split("_")[-1])
         order = user_orders.get(user_id)
         if not order:
             bot.answer_callback_query(call.id, "الطلب غير موجود أو انتهت صلاحيته.")
             return
-        product = order["product"]
+
+        product   = order["product"]
         player_id = order["player_id"]
         price_syp = convert_price_usd_to_syp(product.price)
+
         if call.data.startswith("admin_approve_"):
             deduct_balance(user_id, price_syp, f"شراء {product.name}")
             # إضافة سجل الشراء في جدول المشتريات
@@ -265,8 +269,14 @@ bot.send_message(admin_id, admin_msg, parse_mode="Markdown", reply_markup=admin_
                 reply_markup=keyboards.main_menu()
             )
         else:
-            bot.send_message(user_id, "❌ عذرًا، لم يتم تنفيذ طلبك حاليًا. سنبلغك عند توفر المنتج.", reply_markup=keyboards.main_menu())
+            bot.send_message(
+                user_id,
+                "❌ عذرًا، لم يتم تنفيذ طلبك حاليًا. سنبلغك عند توفر المنتج.",
+                reply_markup=keyboards.main_menu()
+            )
+
         clear_user_order(user_id)
+
 
 def handle_player_id(message, bot, admin_ids):
     user_id = message.from_user.id
