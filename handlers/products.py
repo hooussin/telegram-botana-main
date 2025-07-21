@@ -240,10 +240,10 @@ def setup_inline_handlers(bot, admin_ids):
                 username=call.from_user.username,
                 request_text=admin_msg
             )
-bot.send_message(admin_id, admin_msg, parse_mode="Markdown", reply_markup=admin_keyboard)
+    bot.send_message(admin_id, admin_msg, parse_mode="Markdown", reply_markup=admin_keyboard)
 
     @bot.callback_query_handler(
-        func=lambda c: c.data.startswith("admin_approve_") or c.data.startswith("admin_reject_")
+    func=lambda c: c.data.startswith("admin_approve_") or c.data.startswith("admin_reject_")
     )
     def on_admin_action(call):
         user_id = int(call.data.split("_")[-1])
