@@ -72,7 +72,7 @@ def register(bot, user_state):
     @bot.message_handler(func=lambda msg: msg.text == "💰 محفظتي")
 def handle_wallet(msg):
         show_wallet(bot, msg, user_state)
-
+    
     @bot.message_handler(func=lambda msg: msg.text == "🛍️ مشترياتي")
 def handle_purchases(msg):
         show_purchases(bot, msg, user_state)
