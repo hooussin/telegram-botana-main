@@ -18,7 +18,7 @@ from services import wallet_service, queue_service
 # ----------- تسجيل الهاندلرز (حسب الحاجة): -----------
 admin.register(bot, user_state)
 bill_and_units.register(bot)
-products.register(bot)
+products.register(bot, user_state)
 wallet.register(bot)
 # إذا يوجد دالة register في queue_service أو wallet_service فقط عندها أضفهم هنا:
 # queue_service.register(bot)
