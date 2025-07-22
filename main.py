@@ -11,20 +11,18 @@ import socketserver
 bot = telebot.TeleBot(API_TOKEN, parse_mode="HTML")
 user_state = {}
 
-# استيراد الهاندلرز (الموجودة في مجلد handlers)
-from handlers import admin, bill_and_units, products, wallet, queue_service
-# استيراد الخدمات (services)
-from services import wallet_service
+# ----------- الاستيرادات الصحيحة: -----------
+from handlers import admin, bill_and_units, products, wallet
+from services import wallet_service, queue_service
 
-# تسجيل الهاندلرز (حسب الحاجة)
+# ----------- تسجيل الهاندلرز (حسب الحاجة): -----------
 admin.register(bot, user_state)
 bill_and_units.register(bot)
 products.register(bot)
 wallet.register(bot)
-queue_service.register(bot)
-wallet_service.register(bot)   # فقط إذا فيه دالة register، إذا لا احذف هذا السطر
-
-
+# إذا يوجد دالة register في queue_service أو wallet_service فقط عندها أضفهم هنا:
+# queue_service.register(bot)
+# wallet_service.register(bot)
 
 PORT = 8081
 
