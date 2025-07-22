@@ -14,9 +14,16 @@ from services.wallet_service import (
     register_user_if_not_exist,
     deduct_balance,
     add_purchase,
-    add_balance
+    add_balance,
+    get_balance,
 )
-from services.queue_service import add_pending_request, delete_pending_request, process_queue
+from services.queue_service import (
+    add_pending_request,
+    delete_pending_request,
+    process_queue,
+    postpone_request,
+    queue_cooldown_start,
+)
 from services.cleanup_service import delete_inactive_users
 from services.recharge_service import validate_recharge_code
 
@@ -51,6 +58,8 @@ def clear_pending_request(user_id):
     except Exception:
         pass
 
+# لحفظ حالة الإلغاء مع سبب أو صورة مؤقتاً
+_cancel_pending = {}
 
 def register(bot, history):
     # ========== أوامر /done و /cancel ==========
@@ -86,30 +95,96 @@ def register(bot, history):
         bot.delete_message(call.message.chat.id, call.message.message_id)
 
         if action == "postpone":
-            delete_pending_request(request_id)
-            add_pending_request(user_id, None, text)
+            # تأجيل الطلب
+            postpone_request(request_id)
             bot.answer_callback_query(call.id, "✅ تم تأجيل الطلب.")
             bot.send_message(
                 user_id,
-                "⏳ تم تأجيل طلبك بسبب الضغط، سيتم معالجته خلال 5–10 دقائق."
+                "⏳ نعتذر عن التأخير.\nسيتم النظر بطلبك قريبًا بسبب الضغط لدينا.\nتم تأجيل طلبك إلى نهاية قائمة الانتظار."
             )
-        else:
+            queue_cooldown_start()  # تفعيل انتظار دقيقتين قبل الطلب القادم
+            # بعد التبريد سيتم نداء process_queue تلقائيًا من منطق التطبيق
+            process_queue(bot)
+        elif action == "cancel":
+            # بدء منطق الإلغاء مع السبب أو الصورة
+            bot.answer_callback_query(call.id, "🚫 يرجى كتابة سبب الإلغاء أو إرسال صورة (سيتم إرساله للعميل):")
+            _cancel_pending[call.from_user.id] = {"request_id": request_id, "user_id": user_id}
+            bot.send_message(call.message.chat.id, "✏️ أرسل سبب الإلغاء كتابياً أو أرسل صورة للعميل:")
+            # الدالة التالية ستلتقط الرسالة التالية من الإدمن
+            bot.register_next_step_handler_by_chat_id(
+                call.message.chat.id,
+                lambda msg: handle_cancel_reason(msg, call)
+            )
+        elif action == "accept":
+            # قبول الطلب وتنفيذه
+            # استخراج السعر والمنتج وplayer_id من نص الطلب
             m_price = re.search(r"💵 السعر: ([\d,]+) ل\.س", text)
             price = int(m_price.group(1).replace(",", "")) if m_price else 0
             m_prod = re.search(r"🔖 منتج: (.+)", text)
             product_name = m_prod.group(1) if m_prod else ""
+            m_player = re.search(r"آيدي اللاعب: (.+)", text)
+            player_id = m_player.group(1) if m_player else ""
 
-            deduct_balance(user_id, price)
-            add_purchase(user_id, product_name, price)
+            # التحقق من الرصيد مجدداً قبل الخصم
+            balance = get_balance(user_id)
+            if balance < price:
+                bot.send_message(call.message.chat.id, f"❌ لا يوجد رصيد كافٍ لدى العميل (الرصيد: {balance:,} ل.س). الطلب تم حذفه.")
+                bot.send_message(
+                    user_id,
+                    f"❌ عذراً، لم يتم تنفيذ طلبك بسبب عدم كفاية الرصيد."
+                )
+                delete_pending_request(request_id)
+                queue_cooldown_start()
+                process_queue(bot)
+                return
+
+            # إضافة الشراء في سجل المشتريات
+            # هنا نحتاج استخراج رقم المنتج (أو وضع product_id=0 إذا غير متوفر)
+            m_pid = re.search(r"select_(\d+)", text)
+            product_id = int(m_pid.group(1)) if m_pid else 0
+
+            # تسجيل الشراء في سجل المشتريات (ستحذف تلقائياً بعد 36 ساعة)
+            add_purchase(user_id, product_id, product_name, price, player_id)
+
+            # حذف الطلب من الطابور
             delete_pending_request(request_id)
             bot.answer_callback_query(call.id, "✅ تم قبول وتنفيذ الطلب.")
+
+            # إعلام العميل
             bot.send_message(
                 user_id,
-                f"✅ تم تنفيذ طلبك: {product_name}.\n"
-                f"وخصم {price:,} ل.س من محفظتك."
+                f"✅ تم شحن {product_name} بنجاح.\nتم خصم {price:,} ل.س من محفظتك."
             )
+            queue_cooldown_start()
+            process_queue(bot)
+        else:
+            bot.answer_callback_query(call.id, "❌ حدث خطأ غير متوقع.")
 
+    # استلام سبب الإلغاء أو الصورة للعميل
+    def handle_cancel_reason(msg, call):
+        data = _cancel_pending.get(msg.from_user.id)
+        if not data:
+            return
+        user_id = data["user_id"]
+        request_id = data["request_id"]
+        reason_text = ""
+        # نص أو صورة؟
+        if msg.content_type == 'text':
+            reason_text = msg.text.strip()
+            bot.send_message(
+                user_id,
+                f"❌ تم إلغاء طلبك من الإدارة.\n📝 السبب: {reason_text}"
+            )
+        elif msg.content_type == 'photo':
+            # أرسل الصورة للعميل (بدون نص أو مع تعليق)
+            bot.send_photo(user_id, msg.photo[-1].file_id, caption="❌ تم إلغاء طلبك من الإدارة.")
+        else:
+            bot.send_message(user_id, "❌ تم إلغاء طلبك من الإدارة.")
+        bot.send_message(msg.chat.id, "تم إرسال سبب الإلغاء للعميل وحذف الطلب.")
+        delete_pending_request(request_id)
+        queue_cooldown_start()
         process_queue(bot)
+        _cancel_pending.pop(msg.from_user.id, None)
 
     # ========== شحن المحفظة وتقرير الأكواد وغيرها ==========
     @bot.callback_query_handler(func=lambda call: call.data.startswith("confirm_add_"))
