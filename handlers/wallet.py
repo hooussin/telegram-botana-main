@@ -20,8 +20,8 @@ def show_wallet(bot, message, history=None):
     register_user_if_not_exist(user_id, name)  # تأكد من تسجيل المستخدم
     balance = get_balance(user_id)
 
-    if user_id not in history:
-        history.setdefault(user_id, []).append("wallet")  # ❌ هذا السطر غير متداخل
+    if history is not None:
+        history.setdefault(user_id, []).append("wallet")
 
     text = (
         f"🧾 رقم حسابك: `{user_id}`\n"
@@ -39,7 +39,7 @@ def show_purchases(bot, message, history=None):
     user_id = message.from_user.id
     name = message.from_user.full_name
     register_user_if_not_exist(user_id, name)
-    purchases = get_purchases(user_id)  # الصحيح هنا
+    purchases = get_purchases(user_id)  # الآن يحذف القديم تلقائيًا
 
     if history is not None:
         history.setdefault(user_id, []).append("wallet")
@@ -51,7 +51,7 @@ def show_purchases(bot, message, history=None):
             reply_markup=keyboards.wallet_menu()
         )
     else:
-        text = "🛍️ مشترياتك المقبولة:\n" + "\n".join(purchases)
+        text = "🛍️ مشترياتك (متاحة آخر 36 ساعة فقط):\n" + "\n".join(purchases)
         bot.send_message(
             message.chat.id,
             text,
@@ -63,7 +63,7 @@ def show_transfers(bot, message, history=None):
     user_id = message.from_user.id
     name = message.from_user.full_name
     register_user_if_not_exist(user_id, name)
-    transfers = get_transfers(user_id)  # الصحيح هنا
+    transfers = get_transfers(user_id)
 
     if history is not None:
         history.setdefault(user_id, []).append("wallet")
