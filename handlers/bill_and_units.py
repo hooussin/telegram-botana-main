@@ -557,14 +557,16 @@ def register_bill_and_units(bot, history):
         )
         bot.send_message(ADMIN_MAIN_ID, summary, reply_markup=kb_admin)
         add_pending_request(
-        user_id=user_id,
-        username=call.from_user.username,
-        request_text=(
-            f"🟡 فاتورة MTN:\n"
-            f"📱 {user_states[user_id]['number']}\n"
-            f"💵 {user_states[user_id]['amount']:,} ل.س\n"
-            f"🧾 مع العمولة : {total:,} ل.س"
-        )
+            user_id=user_id,
+            username=call.from_user.username,
+            request_text=(
+                f"🟡 فاتورة MTN:\n"
+                f"📱 {user_states[user_id]['number']}\n"
+                f"💵 {user_states[user_id]['amount']:,} ل.س\n"
+                f"🧾 مع العمولة : {total:,} ل.س"
+            )
+        )  # ← قوص الإغلاق هنا
+
         bot.send_message(call.message.chat.id, "✅ تم إرسال الطلب إلى الإدارة، بانتظار الموافقة.")
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_bill_"))
