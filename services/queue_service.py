@@ -1,3 +1,5 @@
+# services/queue_service.py
+
 import time
 from datetime import datetime
 
@@ -35,7 +37,7 @@ def get_next_request():
     """
     res = client.table(QUEUE_TABLE) \
         .select("*") \
-        .order("created_at", {"ascending": True}) \
+        .order("created_at", True) \  # True تعني ترتيب تصاعدي
         .limit(1) \
         .execute()
     data = res.data or []
