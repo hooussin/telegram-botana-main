@@ -579,16 +579,15 @@ def register_bill_and_units(bot, history):
             reply_markup=kb
         )
 
-        @bot.callback_query_handler(func=lambda call: call.data == "final_confirm_syr_bill")
-        def final_confirm_syr_bill(call):
-            user_id = call.from_user.id
-            # prevent multiple pending requests
-            if user_id in pending_users:
-                bot.answer_callback_query(call.id, "🔥 لديك طلب قيد الانتظار بالفعل")
-                bot.send_message(call.message.chat.id, "⚠️ لديك طلب قيد الانتظار بالفعل، انتظر موافقة الإدارة أولاً.")
-                user_states.pop(user_id, None)
-                return
-
+    @bot.callback_query_handler(func=lambda call: call.data == "final_confirm_syr_bill")
+    def final_confirm_syr_bill(call):
+        user_id = call.from_user.id
+        # prevent multiple pending requests
+        if user_id in pending_users:
+            bot.answer_callback_query(call.id, "🔥 لديك طلب قيد الانتظار بالفعل")
+            bot.send_message(call.message.chat.id, "⚠️ لديك طلب قيد الانتظار بالفعل، انتظر موافقة الإدارة أولاً.")
+            user_states.pop(user_id, None)
+            return
             total = user_states[user_id].get("amount_with_fee", 0)
             balance = get_balance(user_id)
             if balance < total:
@@ -621,22 +620,22 @@ def register_bill_and_units(bot, history):
             bot.answer_callback_query(call.id, "✅ تم إرسال الطلب للإدارة")
             bot.send_message(call.message.chat.id, "✅ تم إرسال طلب الفاتورة للإدارة، بانتظار الموافقة.")
 
-
-        @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_bill_"))
-        def admin_accept_syr_bill(call):
-
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_bill_"))
+    def admin_accept_syr_bill(call):
         user_id = int(call.data.split("_")[-2])
         total = int(call.data.split("_")[-1])
         if not has_sufficient_balance(user_id, total):
             bot.send_message(user_id, "❌ لا يوجد رصيد كافٍ في محفظتك.")
             bot.answer_callback_query(call.id, "❌ رصيد غير كافٍ")
             return
-        deduct_balance(user_id, total)
+        # بعد الموافقة، إزالة من قائمة الانتظار وخصم المبلغ
+        pending_users.discard(user_id)
+        _update_balance(user_id, -total)
+        add_purchase(user_id, f"دفع فاتورة سيرياتيل للرقم {state.get('number','')} بمبلغ {total:,} ل.س")
         bot.send_message(user_id, f"✅ تم دفع فاتورة سيرياتيل بنجاح.\nالمبلغ المقتطع: {total:,} ل.س")
         bot.answer_callback_query(call.id, "✅ تم تنفيذ الدفع")
-        pending_users.discard(user_id)
         user_states.pop(user_id, None)
-
+ 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_syr_bill_"))
     def admin_reject_syr_bill(call):
         user_id = int(call.data.split("_")[-1])
