@@ -797,8 +797,8 @@ def register_bill_and_units(bot, history):
         user_states.pop(call.from_user.id, None)
         bot.send_message(call.message.chat.id, "💼 للذهاب للمحفظة، اضغط على زر المحفظة في القائمة الرئيسية.") 
 
-# alias for main.py
-def register(bot):
-    register_bill_and_units(bot, {})
+    # alias for main.py
+    def register(bot):
+        register_bill_and_units(bot, {})
 
 # لا تغير شيء بعد هذا السطر
