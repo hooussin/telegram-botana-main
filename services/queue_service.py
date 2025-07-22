@@ -4,24 +4,16 @@ import time
 import logging
 from datetime import datetime
 import httpx
-import threading  # لإضافة منطق المؤقت
+import threading
 from database.db import client
 from config import ADMIN_MAIN_ID
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# اسم جدول الانتظار في Supabase
 QUEUE_TABLE = "pending_requests"
-
-# منطق لمنع تكرار العرض (لا يظهر أكثر من طلب في آن واحد)
 _queue_lock = threading.Lock()
-_queue_cooldown = False  # وضع الانتظار (بعد كل معالجة طلب)
-
+_queue_cooldown = False  # يمنع إظهار أكثر من طلب
 
 def add_pending_request(user_id: int, username: str, request_text: str):
-    """
-    إضافة طلب جديد إلى نهاية قائمة الانتظار.
-    يحاول 3 مرات عند فشل الاتصال.
-    """
     for attempt in range(1, 4):
         try:
             client.table(QUEUE_TABLE).insert({
@@ -36,22 +28,13 @@ def add_pending_request(user_id: int, username: str, request_text: str):
             time.sleep(0.5)
     logging.error(f"Failed to add pending request for user {user_id} after 3 attempts.")
 
-
 def delete_pending_request(request_id: int):
-    """
-    حذف الطلب بالكامل من قائمة الانتظار.
-    """
     try:
         client.table(QUEUE_TABLE).delete().eq("id", request_id).execute()
     except Exception:
         logging.exception(f"Error deleting pending request {request_id}")
 
-
 def get_next_request():
-    """
-    جلب أقدم طلب متاح (أول مدخل حسب created_at).
-    Returns the record dict or None.
-    """
     try:
         res = (
             client.table(QUEUE_TABLE)
@@ -69,20 +52,10 @@ def get_next_request():
         logging.exception("Unexpected error in get_next_request")
         return None
 
-
 def update_request_admin_message_id(request_id: int, message_id: int):
-    """
-    دالة وهمية لأن العمود admin_message_id غير موجود في الجدول.
-    فقط تسجل المحاولة ولا تفعل شيئًا.
-    """
     logging.debug(f"Skipping update_request_admin_message_id for request {request_id}")
 
-
 def postpone_request(request_id: int):
-    """
-    تأجيل الطلب: نعيد ضبط created_at للوقت الحالي
-    ليعود الطلب إلى نهاية الطابور.
-    """
     try:
         now = datetime.utcnow().isoformat()
         client.table(QUEUE_TABLE) \
@@ -92,16 +65,8 @@ def postpone_request(request_id: int):
     except Exception:
         logging.exception(f"Error postponing request {request_id}")
 
-
 def process_queue(bot):
-    """
-    عرض للمدير (ADMIN_MAIN_ID) الطلب التالي في قائمة الانتظار،
-    ويرفق مع الرسالة زرين: 🔁 تأجيل و✅ قبول و🚫 إلغاء.
-    يمنع عرض أكثر من طلب للإدمن في وقت واحد،
-    ويطبق انتظار (دقيقتين) بعد كل عملية على الطلب.
-    """
     global _queue_cooldown
-    # إذا كان هناك تبريد (انتظار)، لا ترسل طلب جديد الآن
     if _queue_cooldown:
         return
 
@@ -122,18 +87,13 @@ def process_queue(bot):
 
         bot.send_message(ADMIN_MAIN_ID, text, reply_markup=keyboard)
 
-        # بعد معالجة أي طلب، يمنع عرض التالي لمدة دقيقتين (سيتم مناداة هذا من admin)
-        # تفعيل التبريد هنا فقط من admin.py عند انتهاء الطلب (وليس هنا مباشرة)
-
-def queue_cooldown_start():
-    """
-    تفعيل التبريد لمدة دقيقتين (120 ثانية) بعد كل معالجة طلب.
-    """
+def queue_cooldown_start(bot=None):
     global _queue_cooldown
     _queue_cooldown = True
     def release():
         global _queue_cooldown
-        time.sleep(120)  # 120 ثانية = دقيقتين
+        time.sleep(120)
         _queue_cooldown = False
+        if bot is not None:
+            process_queue(bot)
     threading.Thread(target=release, daemon=True).start()
-
