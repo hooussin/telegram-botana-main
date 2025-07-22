@@ -3,6 +3,7 @@ from telebot import types
 from services.wallet_service import register_user_if_not_exist, get_balance
 from config import BOT_NAME
 from handlers import keyboards
+from services.queue_service import process_queue, add_pending_request, queue_cooldown_start
 from database.models.product import Product
 from services.queue_service import add_pending_request
 from database.db import client
