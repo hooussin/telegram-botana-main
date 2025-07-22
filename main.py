@@ -3,6 +3,8 @@ import sys
 import logging
 import telebot
 from config import API_TOKEN
+from handlers import bill_and_units
+bill_and_units.register(bot)
 
 # =============== Dummy HTTP Server to Open Port ================
 import threading
