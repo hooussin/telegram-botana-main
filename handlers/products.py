@@ -217,31 +217,28 @@ def setup_inline_handlers(bot, admin_ids):
         player_id = order["player_id"]
         price_syp = convert_price_usd_to_syp(product.price)
         pending_orders.add(user_id)
-        # رسالة للعميل
-        bot.send_message(user_id, "✅ تم إرسال طلبك للإدارة.\nالوقت المقدر للرد 1-4 دقائق.")
-        # رسالة للأدمنين
-        for admin_id in admin_ids:
-            admin_keyboard = types.InlineKeyboardMarkup(row_width=2)
-            admin_keyboard.add(
-                types.InlineKeyboardButton("✅ تم التنفيذ", callback_data=f"admin_approve_{user_id}"),
-                types.InlineKeyboardButton("❌ رفض الطلب", callback_data=f"admin_reject_{user_id}")
-            )
-            # تم تعديل السطر لجعل الآيدي قابل للنسخ (بين Backticks)
-            admin_msg = (
-                f"طلب جديد:\n"
-                f"👤 المستخدم: {call.from_user.full_name} (@{call.from_user.username})\n"
-                f"🆔 آيدي التليجرام: `{user_id}`\n"
-                f"🔖 نوع العملية: {product.name}\n"
-                f"🎮 آيدي اللاعب: `{player_id}`\n"
-                f"💵 السعر: {price_syp:,} ل.س"
-            )
-            
-            add_pending_request(
-                user_id=user_id,
-                username=call.from_user.username,
-                request_text=admin_msg
-            )
-            bot.send_message(admin_id, admin_msg, parse_mode="Markdown", reply_markup=admin_keyboard)
+
+        # 1) رسالة للعميل تؤكد دخوله الطابور
+        bot.send_message(
+            user_id,
+            "✅ طلبك أُضيف إلى قائمة الانتظار، وسيصلك الردّ عندما يحل دورك."
+        )
+
+        # 2) تسجيل الطلب في قاعدة البيانات فقط
+        admin_msg = (
+            f"🆕 طلب جديد:\n"
+            f"👤 المستخدم: {call.from_user.full_name} (@{call.from_user.username})\n"
+            f"🆔 آيدي التليجرام: `{user_id}`\n"
+            f"🔖 نوع العملية: {product.name}\n"
+            f"🎮 آيدي اللاعب: `{player_id}`\n"
+            f"💵 السعر: {price_syp:,} ل.س"
+        )
+        add_pending_request(
+            user_id=user_id,
+            username=call.from_user.username,
+            request_text=admin_msg
+        )
+
 
     @bot.callback_query_handler(
     func=lambda c: c.data.startswith("admin_approve_") or c.data.startswith("admin_reject_")
