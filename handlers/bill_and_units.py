@@ -341,7 +341,8 @@ def register_bill_and_units(bot, history):
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_unit_"))(call):
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_unit_"))
+    def admin_accept_syr_unit(call):
         user_id = int(call.data.split("_")[-1])
         state = user_states.get(user_id, {})
         price = state.get("unit", {}).get("price", 0)
@@ -351,16 +352,23 @@ def register_bill_and_units(bot, history):
                 ("❌ إلغاء", "cancel_all"),
                 ("💼 الذهاب للمحفظة", "go_wallet")
             )
-            bot.send_message(user_id,
+            bot.send_message(
+                user_id,
                 f"❌ لا يوجد رصيد كافٍ في محفظتك.\nرصيدك: {balance:,} ل.س\nالمطلوب: {price:,} ل.س\n"
-                f"الناقص: {price - balance:,} ل.س", reply_markup=kb)
+                f"الناقص: {price - balance:,} ل.س",
+                reply_markup=kb
+            )
             bot.answer_callback_query(call.id, "❌ رصيد غير كافٍ")
             user_states.pop(user_id, None)
             return
-        deduct_balance(user_id, price)
-        bot.send_message(user_id, f"✅ تم شراء {state['unit']['name']} لوحدات سيرياتيل بنجاح.")
-        bot.answer_callback_query(call.id, "✅ تم تنفيذ العملية")
-        user_states.pop(user_id, None)
+
+    # بعد التحقق من الرصيد ووجود طلب واحد فقط
+    pending_users.discard(user_id)
+    _update_balance(user_id, -price)
+    bot.send_message(user_id, f"✅ تم شراء {state['unit']['name']} لوحدات سيرياتيل بنجاح.")
+    bot.answer_callback_query(call.id, "✅ تم تنفيذ العملية")
+    user_states.pop(user_id, None)
+
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_syr_unit_"))
     def admin_reject_syr_unit(call):
