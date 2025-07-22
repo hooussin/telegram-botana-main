@@ -342,23 +342,38 @@ def admin_accept_syr_unit(call):
     number = state.get("number", "")
     unit_name = state.get("unit", {}).get("name", "")
     price = state.get("unit", {}).get("price", 0)
+
+    # التحقق من الرصيد
     if not has_sufficient_balance(user_id, price):
         balance = get_balance(user_id)
         return bot.send_message(
             user_id,
-            f"❌ لا يوجد رصيد كافٍ في محفظتك.
+            f"""❌ لا يوجد رصيد كافٍ في محفظتك.
 رصيدك: {balance:,} ل.س
-المطلوب: {price:,} ل.س",
-            reply_markup=make_inline_buttons(("❌ إلغاء", "cancel_all"), ("💼 الذهاب للمحفظة", "go_wallet"))
+المطلوب: {price:,} ل.س""",
+            reply_markup=make_inline_buttons(
+                ("❌ إلغاء", "cancel_all"),
+                ("💼 الذهاب للمحفظة", "go_wallet")
+            )
         )
+
+    # خصم المبلغ وتسجيل الشراء
     _update_balance(user_id, -price)
-    add_purchase(user_id, f"شراء {unit_name} لوحدات {unit_name} للرقم {number} بسعر {price:,} ل.س")
+    add_purchase(
+        user_id,
+        f"شراء {unit_name} لوحدات {unit_name} للرقم {number} بسعر {price:,} ل.س"
+    )
+
+    # إشعار المستخدم بالنجاح
     bot.send_message(
         user_id,
-        f"✅ تم تحويل {unit_name} إلى الرقم <code>{number}</code> و تم خصم مبلغ {price:,} ل.س من محفظتك.",
+        f"✅ تم تحويل {unit_name} إلى الرقم <code>{number}</code> وخصم مبلغ {price:,} ل.س من محفظتك.",
         parse_mode="HTML"
     )
+
+    # تنظيف الحالة
     user_states.pop(user_id, None)
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_syr_unit_"))
     def admin_reject_syr_unit(call):
         user_id = int(call.data.split("_")[-1])
@@ -406,46 +421,52 @@ def admin_accept_syr_unit(call):
             reply_markup=kb
         )
 
-    @bot.callback_query_handler(func=lambda call: call.data == "mtn_unit_final_confirm")
+@bot.callback_query_handler(func=lambda call: call.data == "mtn_unit_final_confirm")
 def mtn_unit_final_confirm(call):
     user_id = call.from_user.id
     state = user_states.get(user_id, {})
     price = state.get("unit", {}).get("price", 0)
     balance = get_balance(user_id)
+
     if balance < price:
         return bot.send_message(
             user_id,
-            f"❌ لا يوجد رصيد كافٍ في محفظتك.
+            f"""❌ لا يوجد رصيد كافٍ في محفظتك.
 رصيدك: {balance:,} ل.س
-المطلوب: {price:,} ل.س",
-            reply_markup=make_inline_buttons(("❌ إلغاء", "cancel_all"), ("💼 الذهاب للمحفظة", "go_wallet"))
+المطلوب: {price:,} ل.س""",
+            reply_markup=make_inline_buttons(
+                ("❌ إلغاء", "cancel_all"),
+                ("💼 الذهاب للمحفظة", "go_wallet")
+            )
         )
+
     state["step"] = "wait_admin_mtn_unit"
     kb_admin = make_inline_buttons(
         ("✅ تأكيد العملية", f"admin_accept_mtn_unit_{user_id}"),
-        ("❌ رفض", f"admin_reject_mtn_unit_{user_id}")
+        ("❌ رفض",            f"admin_reject_mtn_unit_{user_id}")
     )
+
     summary = (
-        f"🟡 طلب وحدات MTN:
-"
-        f"👤 المستخدم: <code>{user_id}</code>
-"
-        f"📱 <code>{state['number']}</code>
-"
-        f"💵 {state['unit']['name']}
-"
-        f"💰 {price:,} ل.س
-"
-        f"✅ بانتظار موافقة الإدارة"
+        "🟡 طلب وحدات MTN:\n"
+        f"👤 المستخدم: <code>{user_id}</code>\n"
+        f"📱 <code>{state['number']}</code>\n"
+        f"💵 {state['unit']['name']}\n"
+        f"💰 {price:,} ل.س\n"
+        "✅ بانتظار موافقة الإدارة"
     )
+
     add_pending_request(
         user_id=user_id,
         username=call.from_user.username,
         request_text=summary
     )
-    bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة. سيتم معالجته خلال 1-4 دقائق.")
+    bot.send_message(
+        call.message.chat.id,
+        "✅ تم إرسال طلبك للإدارة. سيتم معالجته خلال 1-4 دقائق."
+    )
     bot.send_message(ADMIN_MAIN_ID, summary, reply_markup=kb_admin)
     process_queue(bot)
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_mtn_unit_"))
 def admin_accept_mtn_unit(call):
     user_id = int(call.data.split("_")[-1])
@@ -453,23 +474,38 @@ def admin_accept_mtn_unit(call):
     number = state.get("number", "")
     unit_name = state.get("unit", {}).get("name", "")
     price = state.get("unit", {}).get("price", 0)
+
+    # التحقق من الرصيد
     if not has_sufficient_balance(user_id, price):
         balance = get_balance(user_id)
         return bot.send_message(
             user_id,
-            f"❌ لا يوجد رصيد كافٍ في محفظتك.
+            f"""❌ لا يوجد رصيد كافٍ في محفظتك.
 رصيدك: {balance:,} ل.س
-المطلوب: {price:,} ل.س",
-            reply_markup=make_inline_buttons(("❌ إلغاء", "cancel_all"), ("💼 الذهاب للمحفظة", "go_wallet"))
+المطلوب: {price:,} ل.س""",
+            reply_markup=make_inline_buttons(
+                ("❌ إلغاء", "cancel_all"),
+                ("💼 الذهاب للمحفظة", "go_wallet")
+            )
         )
+
+    # خصم المبلغ وتسجيل الشراء
     _update_balance(user_id, -price)
-    add_purchase(user_id, f"شراء {unit_name} لوحدات MTN للرقم {number} بسعر {price:,} ل.س")
+    add_purchase(
+        user_id,
+        f"شراء {unit_name} لوحدات MTN للرقم {number} بسعر {price:,} ل.س"
+    )
+
+    # إشعار المستخدم بالنجاح
     bot.send_message(
         user_id,
-        f"✅ تم تحويل {unit_name} إلى الرقم <code>{number}</code> و تم خصم مبلغ {price:,} ل.س من محفظتك.",
+        f"✅ تم تحويل {unit_name} إلى الرقم <code>{number}</code> وخصم مبلغ {price:,} ل.س من محفظتك.",
         parse_mode="HTML"
     )
+
+    # تنظيف الحالة
     user_states.pop(user_id, None)
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_mtn_unit_"))
     def admin_reject_mtn_unit(call):
         user_id = int(call.data.split("_")[-1])
