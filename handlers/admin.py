@@ -69,12 +69,10 @@ def register(bot, history):
     # ========== معالج الطابور الموحد ==========
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_queue_"))
     def handle_queue_action(call):
-        # call.data = "admin_queue_postpone_<id>" أو "admin_queue_accept_<id>"
         parts = call.data.split("_")
-        action = parts[2]           # "postpone" أو "accept"
+        action = parts[2]
         request_id = int(parts[3])
 
-        # جلب بيانات الطلب
         res = get_table("pending_requests") \
             .select("user_id", "request_text") \
             .eq("id", request_id) \
@@ -85,7 +83,6 @@ def register(bot, history):
         user_id = req["user_id"]
         text = req["request_text"]
 
-        # حذف رسالة الطابور
         bot.delete_message(call.message.chat.id, call.message.message_id)
 
         if action == "postpone":
@@ -96,7 +93,7 @@ def register(bot, history):
                 user_id,
                 "⏳ تم تأجيل طلبك بسبب الضغط، سيتم معالجته خلال 5–10 دقائق."
             )
-        else:  # accept
+        else:
             m_price = re.search(r"💵 السعر: ([\d,]+) ل\.س", text)
             price = int(m_price.group(1).replace(",", "")) if m_price else 0
             m_prod = re.search(r"🔖 منتج: (.+)", text)
@@ -112,25 +109,20 @@ def register(bot, history):
                 f"وخصم {price:,} ل.س من محفظتك."
             )
 
-        # عرض الطلب التالي
         process_queue(bot)
 
-    # ========== طلبات شحن المحفظة بالكود ==========
+    # ========== شحن المحفظة وتقرير الأكواد وغيرها ==========
     @bot.callback_query_handler(func=lambda call: call.data.startswith("confirm_add_"))
     def confirm_wallet_add(call):
-        try:
-            _, _, user_id_str, amount_str = call.data.split("_")
-            user_id = int(user_id_str)
-            amount = int(float(amount_str))
-            register_user_if_not_exist(user_id)
-            add_balance(user_id, amount)
-            clear_pending_request(user_id)
-            bot.send_message(user_id, f"✅ تم إضافة {amount:,} ل.س إلى محفظتك بنجاح.")
-            bot.answer_callback_query(call.id, "✅ تمت الموافقة")
-            bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
-        except Exception as e:
-            logging.exception("❌ خطأ في تأكيد شحن المحفظة:")
-            bot.send_message(call.message.chat.id, f"❌ حدث خطأ: {e}")
+        _, _, user_id_str, amount_str = call.data.split("_")
+        user_id = int(user_id_str)
+        amount = int(float(amount_str))
+        register_user_if_not_exist(user_id)
+        add_balance(user_id, amount)
+        clear_pending_request(user_id)
+        bot.send_message(user_id, f"✅ تم إضافة {amount:,} ل.س إلى محفظتك بنجاح.")
+        bot.answer_callback_query(call.id, "✅ تمت الموافقة")
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("reject_add_"))
     def reject_wallet_add(call):
@@ -151,7 +143,6 @@ def register(bot, history):
         bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
         clear_pending_request(user_id)
 
-    # ========== تقرير الأكواد السرية ==========
     @bot.message_handler(commands=["تقرير_الوكلاء"])
     def generate_report(msg):
         if msg.from_user.id not in ADMINS:
@@ -167,7 +158,6 @@ def register(bot, history):
                 report += f"▪️ {entry['amount']:,} ل.س | {entry['date']} | {entry['user']}\n"
         bot.send_message(msg.chat.id, report, parse_mode="Markdown")
 
-    # ========== واجهة وكلائنا ==========
     @bot.message_handler(func=lambda m: m.text == "🏪 وكلائنا")
     def handle_agents_entry(msg):
         kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -196,11 +186,7 @@ def register(bot, history):
         bot.register_next_step_handler(msg, lambda m: confirm_amount(m, code))
 
     def confirm_amount(msg, code):
-        try:
-            amount = int(msg.text.strip())
-        except ValueError:
-            bot.send_message(msg.chat.id, "❌ مبلغ غير صالح.")
-            return
+        amount = int(msg.text.strip())
         user_id = msg.from_user.id
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         ops = load_code_operations()
@@ -213,4 +199,4 @@ def register(bot, history):
         add_pending_request(user_id, msg.from_user.username, admin_msg)
         process_queue(bot)
 
-# نهاية الملف
+# نهاية handlers/admin.py
