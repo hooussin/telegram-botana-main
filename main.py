@@ -3,8 +3,6 @@ import sys
 import logging
 import telebot
 from config import API_TOKEN
-from handlers import bill_and_units
-bill_and_units.register(bot)
 
 # =============== Dummy HTTP Server to Open Port ================
 import threading
@@ -13,11 +11,22 @@ import socketserver
 
 # --------- هنا ننشئ البوت والمتغيرات أولاً ----------
 bot = telebot.TeleBot(API_TOKEN, parse_mode="HTML")
-user_state = {}  # إذا كان اسم متغيرك user_state أو history
+user_state = {}  # إذا كنت تحتاج هذا المتغير لبعض الهاندلرز
 
-# --------- بعدها استيراد الهاندلر وتسجيله ----------
-from handlers import admin
+# --------- استيراد الهاندلرز بعد إنشاء البوت ---------
+from handlers import admin, bill_and_units, products, wallet, wallet_service, queue_service
+
+# تسجيل كل هاندلر بالترتيب المناسب:
 admin.register(bot, user_state)
+bill_and_units.register(bot)
+products.register(bot)
+wallet.register(bot)
+wallet_service.register(bot)
+queue_service.register(bot)
+
+# --------- أخيراً، تبدأ polling البوت إذا لم يكن في ملف آخر ---------
+# bot.infinity_polling()
+
 
 PORT = 8081
 
