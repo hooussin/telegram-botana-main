@@ -1,3 +1,5 @@
+# handlers/admin.py
+
 from datetime import datetime
 import logging
 import json
@@ -14,7 +16,7 @@ from services.wallet_service import (
 )
 from services.cleanup_service import delete_inactive_users
 from services.recharge_service import validate_recharge_code
-from services.queue_service import add_pending_request
+from services.queue_service import add_pending_request, delete_pending_request
 
 # ============= مسح الطلب المعلق من قائمة الانتظار الداخلية =============
 def clear_pending_request(user_id):
@@ -49,14 +51,69 @@ def register(bot, history):
     @bot.message_handler(func=lambda msg: msg.text and re.match(r'/done_(\d+)', msg.text))
     def handle_done(msg):
         req_id = int(re.match(r'/done_(\d+)', msg.text).group(1))
-        get_table("pending_requests").update({"status": "done"}).eq("id", req_id).execute()
+        delete_pending_request(req_id)
         bot.reply_to(msg, f"✅ تم إنهاء الطلب رقم {req_id}")
 
     @bot.message_handler(func=lambda msg: msg.text and re.match(r'/cancel_(\d+)', msg.text))
     def handle_cancel(msg):
         req_id = int(re.match(r'/cancel_(\d+)', msg.text).group(1))
-        get_table("pending_requests").update({"status": "cancelled"}).eq("id", req_id).execute()
+        delete_pending_request(req_id)
         bot.reply_to(msg, f"🚫 تم إلغاء الطلب رقم {req_id}")
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_approve_"))
+    def handle_admin_approve_queue(call):
+        # 1) استخرج المعرف
+        request_id = int(call.data.split("_")[-1])
+        # 2) جلب بيانات الطلب
+        res = get_table("pending_requests") \
+              .select("user_id,request_text") \
+              .eq("id", request_id) \
+              .execute()
+        if not res.data:
+            bot.answer_callback_query(call.id, "❌ الطلب غير موجود أو مُعالج بالفعل.")
+            return
+        req = res.data[0]
+        user_id = req["user_id"]
+
+        # 3) أرسل رسالة نصّية أو صورة للعميل
+        bot.send_message(
+            user_id,
+            f"✅ طلبك رقم {request_id} تمت الموافقة عليه!\n{req['request_text']}"
+        )
+        # مثال لإرسال صورة:
+        # bot.send_photo(user_id, photo="FILE_ID", caption="تم تنفيذ طلبك بالصورة المرفقة.")
+
+        # 4) حذف الطلب من قاعدة البيانات
+        delete_pending_request(request_id)
+
+        # 5) إعلام الأدمن وإزالة الأزرار
+        bot.answer_callback_query(call.id, "✅ تمت الموافقة وحُذف الطلب.")
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_"))
+    def handle_admin_reject_queue(call):
+        request_id = int(call.data.split("_")[-1])
+        # جلب user_id فقط
+        res = get_table("pending_requests") \
+              .select("user_id") \
+              .eq("id", request_id) \
+              .execute()
+        if not res.data:
+            bot.answer_callback_query(call.id, "❌ الطلب غير موجود أو مُعالج بالفعل.")
+            return
+        user_id = res.data[0]["user_id"]
+
+        # إرسال رسالة رفض للعميل
+        bot.send_message(
+            user_id,
+            f"❌ طلبك رقم {request_id} تم رفضه. يمكنك المحاولة مرة أخرى لاحقًا."
+        )
+
+        # حذف الطلب من قاعدة البيانات
+        delete_pending_request(request_id)
+
+        bot.answer_callback_query(call.id, "❌ تم رفض الطلب وحُذف من الطابور.")
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
     # ==========================================
 
     # ---------- تأكيد/رفض شحن المحفظة عبر أكواد وكلاء ----------
@@ -107,6 +164,7 @@ def register(bot, history):
             .eq("id", call.message.message_id) \
             .execute()
         clear_pending_request(user_id)
+
 
     # ---------- تقرير الأكواد السرية ----------
     @bot.message_handler(commands=["تقرير_الوكلاء"])
