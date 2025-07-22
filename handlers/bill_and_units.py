@@ -294,36 +294,36 @@ def register_bill_and_units(bot, history):
             reply_markup=kb
         )
 
-    @bot.callback_query_handler(func=lambda call: call.data == "syr_unit_final_confirm")
+@bot.callback_query_handler(func=lambda call: call.data == "syr_unit_final_confirm")
 def syr_unit_final_confirm(call):
     user_id = call.from_user.id
     state = user_states.get(user_id, {})
     price = state.get("unit", {}).get("price", 0)
     balance = get_balance(user_id)
+
     if balance < price:
         return bot.send_message(
             user_id,
-            f"❌ لا يوجد رصيد كافٍ في محفظتك.
-رصيدك: {balance:,} ل.س
-المطلوب: {price:,} ل.س",
-            reply_markup=make_inline_buttons(("❌ إلغاء", "cancel_all"), ("💼 الذهاب للمحفظة", "go_wallet"))
+            f"❌ لا يوجد رصيد كافٍ في محفظتك.\n"
+            f"رصيدك: {balance:,} ل.س\n"
+            f"المطلوب: {price:,} ل.س",
+            reply_markup=make_inline_buttons(
+                ("❌ إلغاء", "cancel_all"),
+                ("💼 الذهاب للمحفظة", "go_wallet")
+            )
         )
+
     state["step"] = "wait_admin_syr_unit"
     kb_admin = make_inline_buttons(
         ("✅ تأكيد العملية", f"admin_accept_syr_unit_{user_id}"),
-        ("❌ رفض", f"admin_reject_syr_unit_{user_id}")
+        ("❌ رفض",           f"admin_reject_syr_unit_{user_id}")
     )
     summary = (
-        f"🔴 طلب وحدات سيرياتيل:
-"
-        f"👤 المستخدم: <code>{user_id}</code>
-"
-        f"📱 <code>{state['number']}</code>
-"
-        f"💵 {state['unit']['name']}
-"
-        f"💰 {price:,} ل.س
-"
+        f"🔴 طلب وحدات سيرياتيل:\n"
+        f"👤 المستخدم: <code>{user_id}</code>\n"
+        f"📱 <code>{state['number']}</code>\n"
+        f"💵 {state['unit']['name']}\n"
+        f"💰 {price:,} ل.س\n"
         f"✅ بانتظار موافقة الإدارة"
     )
     add_pending_request(
@@ -331,7 +331,8 @@ def syr_unit_final_confirm(call):
         username=call.from_user.username,
         request_text=summary
     )
-    bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة. سيتم معالجته خلال 1-4 دقائق.")
+    bot.send_message(call.message.chat.id,
+                     "✅ تم إرسال طلبك للإدارة. سيتم معالجته خلال 1-4 دقائق.")
     bot.send_message(ADMIN_MAIN_ID, summary, reply_markup=kb_admin)
     process_queue(bot)
 @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_unit_"))
