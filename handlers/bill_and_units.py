@@ -305,35 +305,41 @@ def register_bill_and_units(bot, history):
             bot.send_message(call.message.chat.id, "⚠️ لديك طلب قيد الانتظار بالفعل، انتظر موافقة الإدارة أولاً.")
             user_states.pop(user_id, None)
             return
+
         state = user_states.get(user_id, {})
         price = state.get("unit", {}).get("price", 0)
         balance = get_balance(user_id)
+ 
         if balance < price:
             kb = make_inline_buttons(("❌ إلغاء", "cancel_all"), ("💼 المحفظة", "go_wallet"))
             bot.answer_callback_query(call.id, "❌ رصيد غير كافٍ")
-            bot.send_message(user_id, f"❌ لا يوجد رصيد كافٍ في محفظتك.
-رصيدك: {balance:,} ل.س
-المطلوب: {price:,} ل.س", reply_markup=kb)
+            bot.send_message(
+                user_id,
+                f"❌ لا يوجد رصيد كافٍ في محفظتك.\nرصيدك: {balance:,} ل.س\nالمطلوب: {price:,} ل.س",
+                reply_markup=kb
+            )
             user_states.pop(user_id, None)
             return
+
         # queue the request
         pending_users.add(user_id)
         state["step"] = "wait_admin_syr_unit"
         request_text = (
-            f"🔴 وحدات سيرياتيل:
-"
-            f"👤 المستخدم: <code>{user_id}</code>
-"
-            f"📱 <code>{state['number']}</code>
-"
-            f"💵 {state['unit']['name']}
-"
+            f"🔴 وحدات سيرياتيل:\n"
+            f"👤 المستخدم: <code>{user_id}</code>\n"
+            f"📱 <code>{state['number']}</code>\n"
+            f"💵 {state['unit']['name']}\n"
             f"💰 {price:,} ل.س"
         )
-        add_pending_request(user_id=user_id, username=call.from_user.username, request_text=request_text)
+        add_pending_request(
+            user_id=user_id,
+            username=call.from_user.username,
+            request_text=request_text
+        )
         process_queue(bot)
         bot.answer_callback_query(call.id, "✅ تم إرسال الطلب للإدارة")
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
+
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_unit_"))(call):
         user_id = int(call.data.split("_")[-1])
