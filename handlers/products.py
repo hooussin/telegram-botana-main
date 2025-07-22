@@ -93,7 +93,8 @@ def handle_player_id(message, bot):
         user_id,
         (
             f"هل أنت متأكد من شراء {product.name}؟\n"
-            f"سيتم خصم {price_syp:,} ل.س من محفظتك عند موافقة الإدارة."
+            f"سيتم إرسال طلبك للإدارة وسَيُخصم {price_syp:,} ل.س من محفظتك فقط عند موافقة الإدارة.\n"
+            f"بعد التأكيد لن تتمكن من إرسال طلب آخر حتى إنهاء الطلب الحالي."
         ),
         reply_markup=keyboard
     )
@@ -105,7 +106,7 @@ def register(bot, history):
         user_id = msg.from_user.id
         register_user_if_not_exist(user_id, msg.from_user.full_name)
         if user_id in pending_orders:
-            bot.send_message(msg.chat.id, "⚠️ لديك طلب قيد الانتظار.")
+            bot.send_message(msg.chat.id, "⚠️ لديك طلب قيد الانتظار ولا يمكنك تقديم طلب جديد حتى يتم معالجته.")
             return
         history.setdefault(user_id, []).append("products_menu")
         show_products_menu(bot, msg)
@@ -126,7 +127,7 @@ def register(bot, history):
         user_id = msg.from_user.id
         register_user_if_not_exist(user_id, msg.from_user.full_name)
         if user_id in pending_orders:
-            bot.send_message(msg.chat.id, "⚠️ لديك طلب قيد الانتظار.")
+            bot.send_message(msg.chat.id, "⚠️ لديك طلب قيد الانتظار ولا يمكنك تقديم طلب جديد حتى يتم معالجته.")
             return
         category_map = {
             "🎯 شحن شدات ببجي العالمية": "PUBG",
@@ -144,7 +145,7 @@ def setup_inline_handlers(bot, admin_ids):
     def on_select_product(call):
         user_id = call.from_user.id
         if user_id in pending_orders:
-            bot.answer_callback_query(call.id, "⚠️ لا يمكنك إرسال طلب جديد الآن.", show_alert=True)
+            bot.answer_callback_query(call.id, "⚠️ لا يمكنك إرسال طلب جديد الآن، لديك طلب قيد التنفيذ.", show_alert=True)
             return
         product_id = int(call.data.split("_", 1)[1])
         selected = None
@@ -184,6 +185,9 @@ def setup_inline_handlers(bot, admin_ids):
     @bot.callback_query_handler(func=lambda c: c.data == "final_confirm_order")
     def final_confirm_order(call):
         user_id = call.from_user.id
+        if user_id in pending_orders:
+            bot.answer_callback_query(call.id, "⚠️ لديك طلب قيد الانتظار بالفعل.", show_alert=True)
+            return
         order = user_orders.get(user_id)
         if not order or "product" not in order or "player_id" not in order:
             bot.answer_callback_query(call.id, "❌ لم يتم تجهيز الطلب بالكامل.")
@@ -193,7 +197,7 @@ def setup_inline_handlers(bot, admin_ids):
         price_syp = convert_price_usd_to_syp(product.price)
 
         pending_orders.add(user_id)
-        bot.send_message(user_id, "✅ تم إرسال طلبك للإدارة. يرجى الانتظار 1–4 دقائق.")
+        bot.send_message(user_id, "✅ تم إرسال طلبك للإدارة. سيتم معالجته خلال مدة من 1 إلى 4 دقائق. لن تتمكن من تقديم طلب جديد حتى معالجة هذا الطلب.")
 
         admin_msg = (
             f"🆕 طلب جديد من @{call.from_user.username or ''} (ID: {user_id}):\n"
@@ -207,3 +211,4 @@ def setup_inline_handlers(bot, admin_ids):
             request_text=admin_msg
         )
         process_queue(bot)
+
