@@ -1,6 +1,6 @@
 # queue_service.py
 from datetime import datetime
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from db import get_next_request, update_request_admin_message_id, postpone_request
 
 # معرّف شات الأدمن
