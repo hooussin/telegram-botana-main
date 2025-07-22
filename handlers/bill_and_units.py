@@ -622,8 +622,9 @@ def register_bill_and_units(bot, history):
             bot.send_message(call.message.chat.id, "✅ تم إرسال طلب الفاتورة للإدارة، بانتظار الموافقة.")
 
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_bill_"))(func=lambda call: call.data.startswith("admin_accept_syr_bill_"))
-    def admin_accept_syr_bill(call):
+        @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_bill_"))
+        def admin_accept_syr_bill(call):
+
         user_id = int(call.data.split("_")[-2])
         total = int(call.data.split("_")[-1])
         if not has_sufficient_balance(user_id, total):
