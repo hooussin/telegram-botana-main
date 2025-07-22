@@ -85,7 +85,7 @@ def process_queue(bot):
             InlineKeyboardButton("🖼️ صورة للعميل", callback_data=f"admin_queue_photo_{request_id}")
         )
 
-        bot.send_message(ADMIN_MAIN_ID, text, reply_markup=keyboard)
+        bot.send_message(ADMIN_MAIN_ID, text, reply_markup=keyboard, parse_mode="HTML")
 
 def queue_cooldown_start(bot=None):
     global _queue_cooldown
