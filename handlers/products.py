@@ -1,11 +1,19 @@
+# handlers/products.py
+
+import logging
 from telebot import types
-from services.wallet_service import register_user_if_not_exist, get_balance
+from services.wallet_service import (
+    register_user_if_not_exist,
+    get_balance,
+    get_all_products,
+    get_product_by_id,
+    add_purchase,
+    deduct_balance
+)
 from config import BOT_NAME
 from handlers import keyboards
 from database.models.product import Product
-from services.wallet_service import get_all_products, get_balance, get_product_by_id, add_purchase, deduct_balance
 from services.queue_service import add_pending_request, process_queue
-import logging
 
 # استدعاء عميل supabase
 from database.db import client
@@ -89,7 +97,7 @@ def clear_user_order(user_id):
     user_orders.pop(user_id, None)
     pending_orders.discard(user_id)
 
-# ============= تسجيل المستخدم واختيار المنتجات =============
+# ============= تسجيل المستخدم =============
 def register(bot, history):
     @bot.message_handler(func=lambda msg: msg.text in ["🛒 المنتجات", "💼 المنتجات"])
     def handle_main_product_menu(msg):
@@ -130,6 +138,46 @@ def register(bot, history):
         user_orders[user_id] = {"category": category}
         show_product_options(bot, msg, category)
 
+    @bot.callback_query_handler(func=lambda c: c.data == "final_confirm_order")
+    def final_confirm_order(call):
+        user_id = call.from_user.id
+        if user_id in pending_orders:
+            bot.send_message(user_id, "⚠️ لديك طلب قيد الانتظار.")
+            return
+        order = user_orders.get(user_id)
+        if not order:
+            bot.send_message(user_id, "❌ لم يتم العثور على طلب.")
+            return
+        product = order["product"]
+        player_id = order["player_id"]
+        price_syp = convert_price_usd_to_syp(product.price)
+
+        pending_orders.add(user_id)
+
+        # إخطار العميل بوضع الطلب في الانتظار
+        bot.send_message(
+            user_id,
+            "✅ طلبك الآن قيد الانتظار. شكرًا لصبرك."
+        )
+
+        # تسجيل الطلب في قاعدة البيانات فقط (لـ طابور الأدمن)
+        admin_msg = (
+            f"🆕 طلب جديد من @{call.from_user.username or ''} (ID: {user_id}):\n"
+            f"🔖 منتج: {product.name}\n"
+            f"🎮 آيدي اللاعب: {player_id}\n"
+            f"💵 السعر: {price_syp:,} ل.س"
+        )
+        add_pending_request(
+            user_id=user_id,
+            username=call.from_user.username,
+            request_text=admin_msg
+        )
+
+        # فتح معالج الطابور للأدمن
+        process_queue(bot)
+
+# ============= الهاندلر الرئيسي للأزرار المضمنة =============
+def setup_inline_handlers(bot, admin_ids):
     @bot.callback_query_handler(func=lambda c: c.data.startswith("select_"))
     def on_select_product(call):
         user_id = call.from_user.id
@@ -183,7 +231,7 @@ def register(bot, history):
         user_id = call.from_user.id
         order = user_orders[user_id]
         product = order["product"]
-        player_id = order.get("player_id")
+        player_id = order["player_id"]
         price_syp = convert_price_usd_to_syp(product.price)
         balance = get_balance(user_id)
         if balance < price_syp:
@@ -195,7 +243,7 @@ def register(bot, history):
         keyboard = types.InlineKeyboardMarkup(row_width=2)
         keyboard.add(
             types.InlineKeyboardButton("✅ تأكيد الشراء", callback_data="final_confirm_order"),
-            types.InlineKeyboardButton("❌ إلغاء",         callback_data="cancel_order"),
+            types.InlineKeyboardButton("❌ إلغاء", callback_data="cancel_order"),
         )
         msg_text = (
             f"هل أنت متأكد من شراء {product.name}؟\n"
@@ -203,33 +251,3 @@ def register(bot, history):
             "إذا رغبت بالإلغاء اضغط إلغاء."
         )
         bot.send_message(user_id, msg_text, reply_markup=keyboard)
-
-    @bot.callback_query_handler(func=lambda c: c.data == "final_confirm_order")
-    def final_confirm_order(call):
-        user_id = call.from_user.id
-        order = user_orders[user_id]
-        product = order["product"]
-        player_id = order.get("player_id")
-        price_syp = convert_price_usd_to_syp(product.price)
-
-        pending_orders.add(user_id)
-
-        # إخطار العميل بوضع الطلب في الانتظار
-        bot.send_message(
-            user_id,
-            "✅ طلبك الآن قيد الانتظار. شكرًا لصبرك."
-        )
-
-        # تسجيل الطلب في قاعدة البيانات فقط (لـ طابور الأدمن)
-        admin_msg = (
-            f"🆕 طلب جديد من @{call.from_user.username or ''} (ID: {user_id}):\n"
-            f"🔖 منتج: {product.name}\n"
-            f"🎮 آيدي اللاعب: {player_id}\n"
-            f"💵 السعر: {price_syp:,} ل.س"
-        )
-        add_pending_request(
-            user_id=user_id,
-            username=call.from_user.username,
-            request_text=admin_msg
-        )
-        process_queue(bot)
