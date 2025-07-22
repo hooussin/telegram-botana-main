@@ -374,7 +374,7 @@ def admin_accept_syr_unit(call):
     # تنظيف الحالة
     user_states.pop(user_id, None)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_syr_unit_"))
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_syr_unit_"))
     def admin_reject_syr_unit(call):
         user_id = int(call.data.split("_")[-1])
         bot.send_message(user_id, "❌ تم رفض طلب وحدات سيرياتيل من الإدارة.")
@@ -391,6 +391,7 @@ def admin_accept_syr_unit(call):
         kb.add(types.KeyboardButton("⬅️ رجوع"))
         user_states[user_id] = {"step": "select_mtn_unit"}
         bot.send_message(msg.chat.id, "اختر كمية الوحدات:", reply_markup=kb)
+
 
     @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id, {}).get("step") == "select_mtn_unit")
     def mtn_unit_select(msg):
