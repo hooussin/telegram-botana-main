@@ -35,11 +35,13 @@ def get_next_request():
     جلب أقدم طلب متاح (أول مدخل حسب created_at).
     Returns the record dict or None.
     """
-    res = client.table(QUEUE_TABLE) \
-        .select("*") \
-        .order("created_at", True) \  # True تعني ترتيب تصاعدي
-        .limit(1) \
+    res = (
+        client.table(QUEUE_TABLE)
+        .select("*")
+        .order("created_at", True)
+        .limit(1)
         .execute()
+    )
     data = res.data or []
     return data[0] if data else None
 
