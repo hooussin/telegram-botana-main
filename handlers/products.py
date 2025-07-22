@@ -4,7 +4,7 @@ from config import BOT_NAME
 from handlers import keyboards
 from database.models.product import Product
 from services.wallet_service import get_all_products, get_balance, get_product_by_id, add_purchase, deduct_balance
-from services.queue_service import add_pending_request
+from services.queue_service import add_pending_request, process_queue
 import logging
 
 # استدعاء عميل supabase
@@ -72,10 +72,8 @@ def add_purchase(user_id, product_name, price, player_id):
 def show_products_menu(bot, message):
     bot.send_message(message.chat.id, "📍 اختر نوع المنتج:", reply_markup=keyboards.products_menu())
 
-
 def show_game_categories(bot, message):
     bot.send_message(message.chat.id, "🎮 اختر اللعبة أو التطبيق:", reply_markup=keyboards.game_categories())
-
 
 def show_product_options(bot, message, category):
     options = PRODUCTS.get(category, [])
@@ -86,7 +84,6 @@ def show_product_options(bot, message, category):
         keyboard.add(types.InlineKeyboardButton(label, callback_data=callback_data))
     keyboard.add(types.InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_categories"))
     bot.send_message(message.chat.id, f"📦 اختر الكمية لـ {category}:", reply_markup=keyboard)
-
 
 def clear_user_order(user_id):
     user_orders.pop(user_id, None)
@@ -198,7 +195,7 @@ def register(bot, history):
         keyboard = types.InlineKeyboardMarkup(row_width=2)
         keyboard.add(
             types.InlineKeyboardButton("✅ تأكيد الشراء", callback_data="final_confirm_order"),
-            types.InlineKeyboardButton("❌ إلغاء", callback_data="cancel_order"),
+            types.InlineKeyboardButton("❌ إلغاء",         callback_data="cancel_order"),
         )
         msg_text = (
             f"هل أنت متأكد من شراء {product.name}؟\n"
@@ -235,108 +232,4 @@ def register(bot, history):
             username=call.from_user.username,
             request_text=admin_msg
         )
-
-# ============= الهاندلر الرئيسي للأزرار المضمنة =============
-def setup_inline_handlers(bot):
-    @bot.callback_query_handler(func=lambda c: c.data.startswith("select_"))
-    def on_select_product(call):
-        user_id = call.from_user.id
-        if user_id in pending_orders:
-            bot.answer_callback_query(call.id, "لا يمكنك إرسال طلب جديد حتى يتم معالجة طلبك الحالي.", show_alert=True)
-            return
-        product_id = int(call.data.replace("select_", ""))
-        selected_product = None
-        for category, items in PRODUCTS.items():
-            for product in items:
-                if product.product_id == product_id:
-                    selected_product = product
-                    break
-        order = user_orders.setdefault(user_id, {})
-        order["product"] = selected_product
-        keyboard = types.InlineKeyboardMarkup()
-        keyboard.add(types.InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_products"))
-        msg = bot.send_message(user_id, "💡 أدخل آيدي اللاعب الخاص بك:", reply_markup=keyboard)
-        bot.register_next_step_handler(msg, handle_player_id, bot)
-
-    @bot.callback_query_handler(func=lambda c: c.data == "back_to_products")
-    def back_to_products(call):
-        user_id = call.from_user.id
-        category = user_orders.get(user_id, {}).get("category")
-        if category:
-            msg = bot.send_message(user_id, f"📦 اختر الكمية لـ {category}:", reply_markup=types.ReplyKeyboardRemove())
-            show_product_options(bot, msg, category)
-
-    @bot.callback_query_handler(func=lambda c: c.data == "back_to_categories")
-    def back_to_categories(call):
-        user_id = call.from_user.id
-        msg = bot.send_message(user_id, "🎮 اختر اللعبة أو التطبيق:", reply_markup=types.ReplyKeyboardRemove())
-        show_game_categories(bot, msg)
-
-    @bot.callback_query_handler(func=lambda c: c.data == "edit_player_id")
-    def edit_player_id(call):
-        user_id = call.from_user.id
-        keyboard = types.InlineKeyboardMarkup()
-        keyboard.add(types.InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_products"))
-        msg = bot.send_message(user_id, "💡 أعد إدخال آيدي اللاعب:", reply_markup=keyboard)
-        bot.register_next_step_handler(msg, handle_player_id, bot)
-
-    @bot.callback_query_handler(func=lambda c: c.data == "cancel_order")
-    def cancel_order(call):
-        user_id = call.from_user.id
-        clear_user_order(user_id)
-        bot.send_message(user_id, "❌ تم إلغاء الطلب. يمكنك البدء من جديد.", reply_markup=keyboards.products_menu())
-
-    @bot.callback_query_handler(func=lambda c: c.data == "confirm_player_id")
-    def confirm_player_id(call):
-        user_id = call.from_user.id
-        order = user_orders[user_id]
-        product = order["product"]
-        player_id = order.get("player_id")
-        price_syp = convert_price_usd_to_syp(product.price)
-        balance = get_balance(user_id)
-        if balance < price_syp:
-            keyboard = types.InlineKeyboardMarkup()
-            keyboard.add(types.InlineKeyboardButton("💳 شحن محفظتي", callback_data="topup_wallet"))
-            keyboard.add(types.InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_products"))
-            bot.send_message(user_id, "❌ لا يوجد رصيد كافٍ في محفظتك. الرجاء الشحن أولًا.", reply_markup=keyboard)
-            return
-        keyboard = types.InlineKeyboardMarkup(row_width=2)
-        keyboard.add(
-            types.InlineKeyboardButton("✅ تأكيد الشراء", callback_data="final_confirm_order"),
-            types.InlineKeyboardButton("❌ إلغاء", callback_data="cancel_order"),
-        )
-        msg_text = (
-            f"هل أنت متأكد من شراء {product.name}?\n"
-            f"سيتم خصم مبلغ {price_syp:,} ل.س من محفظتك عند موافقة الإدارة.\n"
-            "إذا رغبت بالإلغاء اضغط إلغاء."
-        )
-        bot.send_message(user_id, msg_text, reply_markup=keyboard)
-
-    @bot.callback_query_handler(func=lambda c: c.data == "final_confirm_order")
-    def final_confirm_order(call):
-        user_id = call.from_user.id
-        order = user_orders[user_id]
-        product = order["product"]
-        player_id = order.get("player_id")
-        price_syp = convert_price_usd_to_syp(product.price)
-
-        pending_orders.add(user_id)
-
-        bot.send_message(
-            user_id,
-            "✅ طلبك الآن قيد الانتظار. شكرًا لصبرك."
-        )
-
-        admin_msg = (
-            f"🆕 طلب جديد من @{call.from_user.username or ''} (ID: {user_id}):\n"
-            f"🔖 منتج: {product.name}\n"
-            f"🎮 آيدي اللاعب: {player_id}\n"
-            f"💵 السعر: {price_syp:,} ل.س"
-        )
-        add_pending_request(
-            user_id=user_id,
-            username=call.from_user.username,
-            request_text=admin_msg
-        )
-
-# ==================== نهاية الملف ====================
+        process_queue(bot)
