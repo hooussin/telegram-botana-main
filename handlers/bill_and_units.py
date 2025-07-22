@@ -769,7 +769,7 @@ def register_bill_and_units(bot, history):
             bot.send_message(call.message.chat.id, "✅ تم إرسال طلب الفاتورة للإدارة، بانتظار الموافقة.")
 
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_mtn_bill_"))(func=lambda call: call.data.startswith("admin_accept_mtn_bill_"))
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_mtn_bill_"))
     def admin_accept_mtn_bill(call):
         user_id = int(call.data.split("_")[-2])
         total = int(call.data.split("_")[-1])
@@ -777,10 +777,16 @@ def register_bill_and_units(bot, history):
             bot.send_message(user_id, "❌ لا يوجد رصيد كافٍ في محفظتك.")
             bot.answer_callback_query(call.id, "❌ رصيد غير كافٍ")
             return
-        deduct_balance(user_id, total)
-        bot.send_message(user_id, f"✅ تم دفع فاتورة MTN بنجاح.\nالمبلغ المقتطع: {total:,} ل.س")
-        bot.answer_callback_query(call.id, "✅ تم تنفيذ الدفع")
+
+        # بعد الموافقة: إزالة من قائمة الانتظار وخصم الرصيد
         pending_users.discard(user_id)
+        _update_balance(user_id, -total)
+        add_purchase(user_id, f"دفع فاتورة MTN للرقم {state.get('number','')} بمبلغ {total:,} ل.س")
+        bot.send_message(
+            user_id,
+            f"✅ تم دفع فاتورة MTN بنجاح.\nالمبلغ المقتطع: {total:,} ل.س"
+        )
+        bot.answer_callback_query(call.id, "✅ تم تنفيذ الدفع")
         user_states.pop(user_id, None)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_mtn_bill_"))
