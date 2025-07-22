@@ -1,5 +1,3 @@
-# services/queue_service.py
-
 import time
 import logging
 from datetime import datetime
@@ -99,3 +97,5 @@ def queue_cooldown_start(bot=None):
         if bot is not None:
             process_queue(bot)
     threading.Thread(target=release, daemon=True).start()
+
+# نهاية ملف queue_service.py
