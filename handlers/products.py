@@ -6,41 +6,39 @@ from services.wallet_service import register_user_if_not_exist, get_balance
 from config import BOT_NAME
 from handlers import keyboards
 from database.models.product import Product
-from services.queue_service import add_pending_request, process_queue
+from services.queue_service import add_pending_request
 from database.db import client
 
-# حفظ حالة الطلبات
 pending_orders = set()
 user_orders = {}
 
 # ============= تعريف المنتجات =============
 PRODUCTS = {
     "PUBG": [
-        Product(1, "60 شدة", "ألعاب", 0.89),
-        Product(2, "325 شدة", "ألعاب", 4.44),
-        Product(3, "660 شدة", "ألعاب", 8.85),
-        Product(4, "1800 شدة", "ألعاب", 22.09),
-        Product(5, "3850 شدة", "ألعاب", 43.24),
-        Product(6, "8100 شدة", "ألعاب", 86.31),
+        Product(1, "60 شدة", "ألعاب", 0.89, "زر 60 شدة"),
+        Product(2, "325 شدة", "ألعاب", 4.44, "زر 325 شدة"),
+        Product(3, "660 شدة", "ألعاب", 8.85, "زر 660 شدة"),
+        Product(4, "1800 شدة", "ألعاب", 22.09, "زر 1800 شدة"),
+        Product(5, "3850 شدة", "ألعاب", 43.24, "زر 3850 شدة"),
+        Product(6, "8100 شدة", "ألعاب", 86.31, "زر 8100 شدة"),
     ],
     "FreeFire": [
-        Product(7, "100 جوهرة", "ألعاب", 0.98),
-        Product(8, "310 جوهرة", "ألعاب", 2.49),
-        Product(9, "520 جوهرة", "ألعاب", 4.13),
-        Product(10, "1060 جوهرة", "ألعاب", 9.42),
-        Product(11, "2180 جوهرة", "ألعاب", 18.84),
+        Product(7, "100 جوهرة", "ألعاب", 0.98, "زر 100 جوهرة"),
+        Product(8, "310 جوهرة", "ألعاب", 2.49, "زر 310 جوهرة"),
+        Product(9, "520 جوهرة", "ألعاب", 4.13, "زر 520 جوهرة"),
+        Product(10, "1060 جوهرة", "ألعاب", 9.42, "زر 1060 جوهرة"),
+        Product(11, "2180 جوهرة", "ألعاب", 18.84, "زر 2180 جوهرة"),
     ],
     "Jawaker": [
-        Product(12, "10000 توكنز", "ألعاب", 1.34),
-        Product(13, "15000 توكنز", "ألعاب", 2.01),
-        Product(14, "20000 توكنز", "ألعاب", 2.68),
-        Product(15, "30000 توكنز", "ألعاب", 4.02),
-        Product(16, "60000 توكنز", "ألعاب", 8.04),
-        Product(17, "120000 توكنز", "ألعاب", 16.08),
+        Product(12, "10000 توكنز", "ألعاب", 1.34, "زر 10000 توكنز"),
+        Product(13, "15000 توكنز", "ألعاب", 2.01, "زر 15000 توكنز"),
+        Product(14, "20000 توكنز", "ألعاب", 2.68, "زر 20000 توكنز"),
+        Product(15, "30000 توكنز", "ألعاب", 4.02, "زر 30000 توكنز"),
+        Product(16, "60000 توكنز", "ألعاب", 8.04, "زر 60000 توكنز"),
+        Product(17, "120000 توكنز", "ألعاب", 16.08, "زر 120000 توكنز"),
     ],
 }
 
-# ============= تحويل السعر من USD إلى SYP =============
 def convert_price_usd_to_syp(usd):
     if usd <= 5:
         return int(usd * 11800)
@@ -50,7 +48,6 @@ def convert_price_usd_to_syp(usd):
         return int(usd * 11300)
     return int(usd * 11000)
 
-# ============= قوائم الواجهات =============
 def show_products_menu(bot, message):
     bot.send_message(message.chat.id, "📍 اختر نوع المنتج:", reply_markup=keyboards.products_menu())
 
@@ -69,7 +66,6 @@ def clear_user_order(user_id):
     user_orders.pop(user_id, None)
     pending_orders.discard(user_id)
 
-# ============= معالجة آيدي اللاعب بعد إدخاله =============
 def handle_player_id(message, bot):
     user_id = message.from_user.id
     player_id = message.text.strip()
@@ -93,13 +89,17 @@ def handle_player_id(message, bot):
         user_id,
         (
             f"هل أنت متأكد من شراء {product.name}؟\n"
+            f"تفاصيل المنتج:\n"
+            f"• اسم الزر: {getattr(product, 'button_name', '---')}\n"
+            f"• التصنيف: {product.category}\n"
+            f"• السعر بالدولار: {product.price}$\n"
+            f"• السعر بالليرة: {price_syp:,} ل.س\n"
             f"سيتم إرسال طلبك للإدارة وسَيُخصم {price_syp:,} ل.س من محفظتك فقط عند موافقة الإدارة.\n"
             f"بعد التأكيد لن تتمكن من إرسال طلب آخر حتى إنهاء الطلب الحالي."
         ),
         reply_markup=keyboard
     )
 
-# ============= تسجيل معالجات الرسائل =============
 def register(bot, history):
     @bot.message_handler(func=lambda msg: msg.text in ["🛒 المنتجات", "💼 المنتجات"])
     def handle_main_product_menu(msg):
@@ -139,7 +139,6 @@ def register(bot, history):
         user_orders[user_id] = {"category": category}
         show_product_options(bot, msg, category)
 
-# ============= تسجيل معالجات الأزرار المضمنة =============
 def setup_inline_handlers(bot, admin_ids):
     @bot.callback_query_handler(func=lambda c: c.data.startswith("select_"))
     def on_select_product(call):
@@ -197,18 +196,24 @@ def setup_inline_handlers(bot, admin_ids):
         price_syp = convert_price_usd_to_syp(product.price)
 
         pending_orders.add(user_id)
-        bot.send_message(user_id, "✅ تم إرسال طلبك للإدارة. سيتم معالجته خلال مدة من 1 إلى 4 دقائق. لن تتمكن من تقديم طلب جديد حتى معالجة هذا الطلب.")
-
         admin_msg = (
-            f"🆕 طلب جديد من @{call.from_user.username or ''} (ID: {user_id}):\n"
-            f"🔖 منتج: {product.name}\n"
-            f"🎮 آيدي اللاعب: {player_id}\n"
-            f"💵 السعر: {price_syp:,} ل.س"
+            f"🆕 طلب جديد\n"
+            f"👤 الاسم: <code>{call.from_user.full_name}</code>\n"
+            f"يوزر: <code>@{call.from_user.username or ''}</code>\n"
+            f"آيدي: <code>{user_id}</code>\n"
+            f"آيدي اللاعب: <code>{player_id}</code>\n"
+            f"🔖 المنتج: {product.name}\n"
+            f"زر المنتج: <code>{getattr(product, 'button_name', '---')}</code>\n"
+            f"التصنيف: {product.category}\n"
+            f"💵 السعر: {price_syp:,} ل.س\n"
+            f"(select_{product.product_id})"
         )
         add_pending_request(
             user_id=user_id,
             username=call.from_user.username,
             request_text=admin_msg
         )
-        process_queue(bot)
+        # لا تنادِ process_queue(bot) هنا بل يتم ذلك من queue_cooldown_start في admin.py
+
+        bot.send_message(user_id, "✅ تم إرسال طلبك للإدارة. سيتم معالجته خلال مدة من 1 إلى 4 دقائق. لن تتمكن من تقديم طلب جديد حتى معالجة هذا الطلب.")
 
