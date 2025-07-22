@@ -1,3 +1,5 @@
+# handlers/products.py
+
 import logging
 from telebot import types
 from services.wallet_service import register_user_if_not_exist, get_balance
@@ -6,7 +8,7 @@ from handlers import keyboards
 from database.models.product import Product
 from services.queue_service import add_pending_request, process_queue
 
-# بيانات Supabase
+# استدعاء عميل supabase
 from database.db import client
 
 # حفظ الطلبات المعلقة
@@ -193,10 +195,8 @@ def register(bot, history):
         price_syp = convert_price_usd_to_syp(product.price)
 
         pending_orders.add(user_id)
-        # إشعار العميل
         bot.send_message(user_id, "✅ تم إرسال طلبك للإدارة. يرجى الانتظار 1–4 دقائق.")
 
-        # إعداد نصّ للإدمن
         admin_msg = (
             f"🆕 طلب جديد من @{call.from_user.username or ''} (ID: {user_id}):\n"
             f"🔖 منتج: {product.name}\n"
