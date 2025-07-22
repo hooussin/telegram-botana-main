@@ -27,7 +27,6 @@ from services.recharge_service import validate_recharge_code
 
 from handlers.products import pending_orders  # هام
 
-# ملف الأكواد السرية
 SECRET_CODES_FILE = "data/secret_codes.json"
 os.makedirs("data", exist_ok=True)
 if not os.path.isfile(SECRET_CODES_FILE):
@@ -54,12 +53,10 @@ def clear_pending_request(user_id):
     except Exception:
         pass
 
-# لحفظ حالة الإلغاء أو القبول مع رسالة أو صورة
 _cancel_pending = {}
 _accept_pending = {}
 
 def register(bot, history):
-    # ========= أوامر /done و /cancel =========
     @bot.message_handler(func=lambda msg: msg.text and re.match(r'/done_(\d+)', msg.text))
     def handle_done(msg):
         req_id = int(re.match(r'/done_(\d+)', msg.text).group(1))
@@ -72,7 +69,6 @@ def register(bot, history):
         delete_pending_request(req_id)
         bot.reply_to(msg, f"🚫 تم إلغاء الطلب {req_id}")
 
-    # ========= معالج الطابور =========
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_queue_"))
     def handle_queue_action(call):
         parts = call.data.split("_")
@@ -111,28 +107,41 @@ def register(bot, history):
             )
 
         elif action == "accept":
+            # استخراج السعر والمنتج وplayer_id من نص الطلب
             m_price = re.search(r"💵 السعر: ([\d,]+) ل\.س", text)
             price = int(m_price.group(1).replace(",", "")) if m_price else 0
             m_prod = re.search(r"🔖 المنتج: (.+)", text)
             product_name = m_prod.group(1) if m_prod else ""
-            m_player = re.search(r"آيدي اللاعب: (.+)", text)
+            m_player = re.search(r"آيدي اللاعب: <code>(.+?)</code>", text)
             player_id = m_player.group(1) if m_player else ""
 
+            # التحقق من الرصيد مجدداً قبل الخصم
             balance = get_balance(user_id)
             if balance < price:
                 bot.send_message(call.message.chat.id, f"❌ لا يوجد رصيد كافٍ لدى العميل (الرصيد: {balance:,} ل.س). الطلب تم حذفه.")
-                bot.send_message(user_id, f"❌ عذراً، لم يتم تنفيذ طلبك بسبب عدم كفاية الرصيد.")
+                bot.send_message(
+                    user_id,
+                    f"❌ عذراً، لم يتم تنفيذ طلبك بسبب عدم كفاية الرصيد."
+                )
                 delete_pending_request(request_id)
                 pending_orders.discard(user_id)
                 queue_cooldown_start(bot)
                 return
 
+            # إضافة الشراء في سجل المشتريات (يخصم تلقائياً بعد الموافقة)
             m_pid = re.search(r"select_(\d+)", text)
             product_id = int(m_pid.group(1)) if m_pid else 0
             add_purchase(user_id, product_id, product_name, price, player_id)
+            deduct_balance(user_id, price)
 
             delete_pending_request(request_id)
             bot.answer_callback_query(call.id, "✅ تم قبول وتنفيذ الطلب.")
+
+            # إعلام العميل أن الطلب تم تنفيذه مع الخصم
+            bot.send_message(
+                user_id,
+                f"✅ تم تنفيذ طلبك: {product_name}\nتم خصم {price:,} ل.س من محفظتك."
+            )
 
             _accept_pending[call.from_user.id] = user_id
             bot.send_message(call.message.chat.id, "✉️ أرسل رسالة للعميل أو صورة (أرسل /skip لتخطي):")
@@ -150,7 +159,6 @@ def register(bot, history):
                 call.message.chat.id,
                 lambda msg: handle_accept_message(msg, call)
             )
-
         elif action == "photo":
             _accept_pending[call.from_user.id] = user_id
             bot.send_message(call.message.chat.id, "🖼️ أرسل الصورة للعميل:")
