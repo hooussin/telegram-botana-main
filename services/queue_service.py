@@ -82,7 +82,9 @@ def process_queue(bot):
         keyboard.add(
             InlineKeyboardButton("🔁 تأجيل", callback_data=f"admin_queue_postpone_{request_id}"),
             InlineKeyboardButton("✅ تأكيد",  callback_data=f"admin_queue_accept_{request_id}"),
-            InlineKeyboardButton("🚫 إلغاء", callback_data=f"admin_queue_cancel_{request_id}")
+            InlineKeyboardButton("🚫 إلغاء", callback_data=f"admin_queue_cancel_{request_id}"),
+            InlineKeyboardButton("✉️ رسالة للعميل", callback_data=f"admin_queue_message_{request_id}"),
+            InlineKeyboardButton("🖼️ صورة للعميل", callback_data=f"admin_queue_photo_{request_id}")
         )
 
         bot.send_message(ADMIN_MAIN_ID, text, reply_markup=keyboard)
