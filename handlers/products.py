@@ -7,11 +7,9 @@ from config import BOT_NAME
 from handlers import keyboards
 from database.models.product import Product
 from services.queue_service import add_pending_request, process_queue
-
-# استدعاء عميل supabase
 from database.db import client
 
-# حفظ الطلبات المعلقة
+# المجموعات لحفظ حالة الطلبات
 pending_orders = set()
 user_orders = {}
 
@@ -71,7 +69,7 @@ def clear_user_order(user_id):
     user_orders.pop(user_id, None)
     pending_orders.discard(user_id)
 
-# ============= بعد إدخال آيدي اللاعب =============
+# ============= معالجة آيدي اللاعب بعد إدخاله =============
 def handle_player_id(message):
     bot = message.bot
     user_id = message.from_user.id
@@ -101,7 +99,7 @@ def handle_player_id(message):
         reply_markup=keyboard
     )
 
-# ============= تسجيل الواجهات =============
+# ============= تسجيل الرسائل =============
 def register(bot, history):
     @bot.message_handler(func=lambda msg: msg.text in ["🛒 المنتجات", "💼 المنتجات"])
     def handle_main_product_menu(msg):
@@ -141,6 +139,8 @@ def register(bot, history):
         user_orders[user_id] = {"category": category}
         show_product_options(bot, msg, category)
 
+# ============= تسجيل معالجات الأزرار المضمنة =============
+def setup_inline_handlers(bot, admin_ids):
     @bot.callback_query_handler(func=lambda c: c.data.startswith("select_"))
     def on_select_product(call):
         user_id = call.from_user.id
@@ -148,7 +148,6 @@ def register(bot, history):
             bot.answer_callback_query(call.id, "⚠️ لا يمكنك إرسال طلب جديد الآن.", show_alert=True)
             return
         product_id = int(call.data.split("_", 1)[1])
-        # البحث في القاموس
         selected = None
         for items in PRODUCTS.values():
             for p in items:
