@@ -312,7 +312,6 @@ def register_bill_and_units(bot, history):
         )
         bot.send_message(call.message.chat.id,
                          "✅ تم إرسال طلبك للإدارة. سيتم معالجته خلال 1-4 دقائق.")
-        bot.send_message(ADMIN_MAIN_ID, summary, reply_markup=kb_admin)
         process_queue(bot)
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_unit_"))
     def admin_accept_syr_unit(call):
@@ -447,7 +446,6 @@ def register_bill_and_units(bot, history):
             call.message.chat.id,
             "✅ تم إرسال طلبك للإدارة. سيتم معالجته خلال 1-4 دقائق."
         )
-        bot.send_message(ADMIN_MAIN_ID, summary, reply_markup=kb_admin)
         process_queue(bot)
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_mtn_unit_"))
     def admin_accept_mtn_unit(call):
@@ -509,6 +507,9 @@ def register_bill_and_units(bot, history):
     def syr_bill_number(msg):
         user_id = msg.from_user.id
         number = msg.text.strip()
+        if not re.match(r"^09\d{8}$", number):
+            bot.send_message(msg.chat.id, "⚠️ الرقم غير صالح، تأكد أنه يبدأ بـ 09 ومؤلف من 10 أرقام.")
+            return
         user_states[user_id]["number"] = number
         user_states[user_id]["step"] = "syr_bill_number_confirm"
         kb = make_inline_buttons(
@@ -610,7 +611,6 @@ def register_bill_and_units(bot, history):
             f"💵 المبلغ: {user_states[user_id]['amount']:,} ل.س\n"
             f"🧾 مع العمولة : {total:,} ل.س"
         )
-        bot.send_message(ADMIN_MAIN_ID, summary, reply_markup=kb_admin)
         add_pending_request(
             user_id=user_id,
             username=call.from_user.username,
@@ -658,6 +658,9 @@ def register_bill_and_units(bot, history):
     def mtn_bill_number(msg):
         user_id = msg.from_user.id
         number = msg.text.strip()
+        if not re.match(r"^09\d{8}$", number):
+            bot.send_message(msg.chat.id, "⚠️ الرقم غير صالح، تأكد أنه يبدأ بـ 09 ومؤلف من 10 أرقام.")
+            return
         user_states[user_id]["number"] = number
         user_states[user_id]["step"] = "mtn_bill_number_confirm"
         kb = make_inline_buttons(
@@ -758,7 +761,6 @@ def register_bill_and_units(bot, history):
             f"💵 المبلغ: {user_states[user_id]['amount']:,} ل.س\n"
             f"🧾 مع العمولة : {total:,} ل.س"
         )
-        bot.send_message(ADMIN_MAIN_ID, summary, reply_markup=kb_admin)
         bot.send_message(call.message.chat.id, "✅ تم إرسال الطلب إلى الإدارة، بانتظار الموافقة.")
     
     
