@@ -166,10 +166,10 @@ def register_university_fees(bot, history):
             username=call.from_user.username,
             request_text=msg
         )
-    msg_admin = bot.send_message(ADMIN_MAIN_ID, msg, reply_markup=kb_admin)
-    user_uni_state[user_id]["admin_message_id"] = msg_admin.message_id
-    user_uni_state[user_id]["admin_chat_id"] = ADMIN_MAIN_ID
-    user_uni_state[user_id]["step"] = "waiting_admin"
+        msg_admin = bot.send_message(ADMIN_MAIN_ID, msg, reply_markup=kb_admin)
+        user_uni_state[user_id]["admin_message_id"] = msg_admin.message_id
+        user_uni_state[user_id]["admin_chat_id"] = ADMIN_MAIN_ID
+        user_uni_state[user_id]["step"] = "waiting_admin"
 
     @bot.callback_query_handler(func=lambda call: call.data == "recharge_wallet_uni")
     def show_recharge_methods_uni(call):
