@@ -69,9 +69,9 @@ def get_next_request():
 def update_request_admin_message_id(request_id: int, message_id: int):
     """
     دالة وهمية لأن العمود admin_message_id غير موجود في الجدول.
-    فقط تسجل محاولات التحديث ولا تفعل شيئًا.
+    فقط تسجل المحاولة ولا تفعل شيئًا.
     """
-    logging.debug(f"Skipping update_request_admin_message_id for request {request_id}, column not present.")
+    logging.debug(f"Skipping update_request_admin_message_id for request {request_id}")
 
 
 def postpone_request(request_id: int):
@@ -94,7 +94,7 @@ def process_queue(bot):
     عرض للمدير (ADMIN_MAIN_ID) الطلب التالي في قائمة الانتظار،
     ويرفق مع الرسالة زرين: 🔁 تأجيل و✅ قبول.
     يجب استدعاء هذا بعد إضافة طلب جديد أو عند الانتهاء من معاملة سابقة.
-    أي استثناء يُسجّل ولا يوقف thread.
+    أي استثناء يُسجّل ولا يوقف الخيط.
     """
     try:
         req = get_next_request()
@@ -106,14 +106,10 @@ def process_queue(bot):
 
         keyboard = InlineKeyboardMarkup(row_width=2)
         keyboard.add(
-            InlineKeyboardButton("🔁 تأجيل", callback_data=f"admin_reject_{request_id}"),
-            InlineKeyboardButton("✅ قبول",  callback_data=f"admin_approve_{request_id}")
+            InlineKeyboardButton("🔁 تأجيل", callback_data=f"admin_queue_postpone_{request_id}"),
+            InlineKeyboardButton("✅ قبول",  callback_data=f"admin_queue_accept_{request_id}")
         )
 
-        msg = bot.send_message(ADMIN_MAIN_ID, text, reply_markup=keyboard)
-        # بدونه لتفادي الخطأ:
-        update_request_admin_message_id(request_id, msg.message_id)
+        bot.send_message(ADMIN_MAIN_ID, text, reply_markup=keyboard)
     except Exception:
         logging.exception("Error in process_queue, continuing...")
-
-# نهاية الملف
