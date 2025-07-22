@@ -235,6 +235,7 @@ def setup_inline_handlers(bot, admin_ids):
                 f"🎮 آيدي اللاعب: `{player_id}`\n"
                 f"💵 السعر: {price_syp:,} ل.س"
             )
+            
             add_pending_request(
                 user_id=user_id,
                 username=call.from_user.username,
