@@ -1,7 +1,7 @@
 from telebot import types
 import math  # added for pagination support
 import logging
-import re  # for phone number validation
+import re  # for phone validation
 
 from services.wallet_service import (
     get_balance,
@@ -41,6 +41,8 @@ MTN_UNITS = [
 ]
 
 user_states = {}
+
+pending_users = set()  # track users with pending requests
 
 # -------------------- أدوات مساعدة عامة --------------------
 
@@ -122,19 +124,21 @@ def register_bill_and_units(bot, history):
         bot.send_message(msg.chat.id, "اختر الخدمة:", reply_markup=units_bills_menu_inline())
 
     # --------- Router له واجهة الإنلاين الرئيسية ---------
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("ubm:"))
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("ubm:")) 
     def ubm_router(call):
         action = call.data.split(":", 1)[1]
         chat_id = call.message.chat.id
         user_id = call.from_user.id
 
         if action == "syr_units":
+            # نفس منطق syr_units_menu (تحديد مرحلة وفتح قائمة الوحدات)
             user_states[user_id] = {"step": "select_syr_unit"}
             _send_syr_units_page(chat_id, page=0, message_id=call.message.message_id)
             bot.answer_callback_query(call.id)
             return
 
         if action == "syr_bill":
+            # إعادة استعمال منطق syr_bill_entry
             user_states[user_id] = {"step": "syr_bill_number"}
             kb = make_inline_buttons(("❌ إلغاء", "cancel_all"))
             bot.edit_message_text("📱 أدخل رقم سيرياتيل المراد دفع فاتورته:", chat_id, call.message.message_id, reply_markup=kb)
@@ -155,6 +159,7 @@ def register_bill_and_units(bot, history):
             return
 
         if action == "back":
+            # رجوع إلى القائمة الرئيسية للبوت (Reply القديمة) دون تعديل المنطق العام
             try:
                 from keyboards import main_menu as _main_menu
                 bot.edit_message_text("⬅️ رجوع", chat_id, call.message.message_id)
@@ -196,7 +201,7 @@ def register_bill_and_units(bot, history):
         user_id = call.from_user.id
 
         if action == "page":
-            page = int(parts[2]) if len(parts) > 2 else 0
+            page = int(parts[2]) if len(parts)>2 else 0
             _send_syr_units_page(chat_id, page=page, message_id=call.message.message_id)
             bot.answer_callback_query(call.id)
             return
@@ -226,7 +231,7 @@ def register_bill_and_units(bot, history):
         user_id = call.from_user.id
 
         if action == "page":
-            page = int(parts[2]) if len(parts) > 2 else 0
+            page = int(parts[2]) if len(parts)>2 else 0
             _send_mtn_units_page(chat_id, page=page, message_id=call.message.message_id)
             bot.answer_callback_query(call.id)
             return
@@ -273,94 +278,91 @@ def register_bill_and_units(bot, history):
         kb = make_inline_buttons(("❌ إلغاء", "cancel_all"))
         bot.send_message(msg.chat.id, "📱 أدخل الرقم أو الكود الذي يبدأ بـ 093 أو 098 أو 099:", reply_markup=kb)
 
+    @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id, {}).get("step") == "syr_unit_number")
+    def syr_unit_number(msg):
+        user_id = msg.from_user.id
+        number = msg.text.strip()
+        state = user_states[user_id]
+        state["number"] = number
+        state["step"] = "syr_unit_confirm"
+        unit = state["unit"]
+        kb = make_inline_buttons(
+            ("❌ إلغاء", "cancel_all"),
+            ("✔️ تأكيد الشراء", "syr_unit_final_confirm")
+        )
+        bot.send_message(
+            msg.chat.id,
+            f"هل أنت متأكد من شراء {unit['name']} بسعر {unit['price']:,} ل.س للرقم:\n{number}؟",
+            reply_markup=kb
+        )
+
     @bot.callback_query_handler(func=lambda call: call.data == "syr_unit_final_confirm")
     def syr_unit_final_confirm(call):
         user_id = call.from_user.id
+        # prevent multiple pending requests
+        if user_id in pending_users:
+            bot.answer_callback_query(call.id, "🔥 لديك طلب قيد الانتظار بالفعل")
+            bot.send_message(call.message.chat.id, "⚠️ لديك طلب قيد الانتظار بالفعل، انتظر موافقة الإدارة أولاً.")
+            user_states.pop(user_id, None)
+            return
         state = user_states.get(user_id, {})
         price = state.get("unit", {}).get("price", 0)
         balance = get_balance(user_id)
-    
         if balance < price:
-            return bot.send_message(
-                user_id,
-                f"❌ لا يوجد رصيد كافٍ في محفظتك.\n"
-                f"رصيدك: {balance:,} ل.س\n"
-                f"المطلوب: {price:,} ل.س",
-                reply_markup=make_inline_buttons(
-                    ("❌ إلغاء", "cancel_all"),
-                    ("💼 الذهاب للمحفظة", "go_wallet")
-                )
-            )
-    
+            kb = make_inline_buttons(("❌ إلغاء", "cancel_all"), ("💼 المحفظة", "go_wallet"))
+            bot.answer_callback_query(call.id, "❌ رصيد غير كافٍ")
+            bot.send_message(user_id, f"❌ لا يوجد رصيد كافٍ في محفظتك.
+رصيدك: {balance:,} ل.س
+المطلوب: {price:,} ل.س", reply_markup=kb)
+            user_states.pop(user_id, None)
+            return
+        # queue the request
+        pending_users.add(user_id)
         state["step"] = "wait_admin_syr_unit"
-        kb_admin = make_inline_buttons(
-            ("✅ تأكيد العملية", f"admin_accept_syr_unit_{user_id}"),
-            ("❌ رفض",           f"admin_reject_syr_unit_{user_id}")
+        request_text = (
+            f"🔴 وحدات سيرياتيل:
+"
+            f"👤 المستخدم: <code>{user_id}</code>
+"
+            f"📱 <code>{state['number']}</code>
+"
+            f"💵 {state['unit']['name']}
+"
+            f"💰 {price:,} ل.س"
         )
-        summary = (
-            f"🔴 طلب وحدات سيرياتيل:\n"
-            f"👤 المستخدم: <code>{user_id}</code>\n"
-            f"📱 <code>{state['number']}</code>\n"
-            f"💵 {state['unit']['name']}\n"
-            f"💰 {price:,} ل.س\n"
-            f"✅ بانتظار موافقة الإدارة"
-        )
-        add_pending_request(
-            user_id=user_id,
-            username=call.from_user.username,
-            request_text=summary
-        )
-        bot.send_message(call.message.chat.id,
-                         "✅ تم إرسال طلبك للإدارة. سيتم معالجته خلال 1-4 دقائق.")
+        add_pending_request(user_id=user_id, username=call.from_user.username, request_text=request_text)
         process_queue(bot)
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_unit_"))
-    def admin_accept_syr_unit(call):
+        bot.answer_callback_query(call.id, "✅ تم إرسال الطلب للإدارة")
+        bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_unit_"))(call):
         user_id = int(call.data.split("_")[-1])
         state = user_states.get(user_id, {})
-        number = state.get("number", "")
-        unit_name = state.get("unit", {}).get("name", "")
         price = state.get("unit", {}).get("price", 0)
-    
-        # التحقق من الرصيد
-        if not has_sufficient_balance(user_id, price):
-            balance = get_balance(user_id)
-            return bot.send_message(
-                user_id,
-                f"""❌ لا يوجد رصيد كافٍ في محفظتك.
-    رصيدك: {balance:,} ل.س
-    المطلوب: {price:,} ل.س""",
-                reply_markup=make_inline_buttons(
-                    ("❌ إلغاء", "cancel_all"),
-                    ("💼 الذهاب للمحفظة", "go_wallet")
-                )
+        balance = get_balance(user_id)
+        if balance < price:
+            kb = make_inline_buttons(
+                ("❌ إلغاء", "cancel_all"),
+                ("💼 الذهاب للمحفظة", "go_wallet")
             )
-    
-        # خصم المبلغ وتسجيل الشراء
-        _update_balance(user_id, -price)
-        add_purchase(
-            user_id,
-            f"شراء {unit_name} لوحدات {unit_name} للرقم {number} بسعر {price:,} ل.س"
-        )
-    
-        # إشعار المستخدم بالنجاح
-        bot.send_message(
-            user_id,
-            f"✅ تم تحويل {unit_name} إلى الرقم <code>{number}</code> وخصم مبلغ {price:,} ل.س من محفظتك.",
-            parse_mode="HTML"
-        )
-    
-        # تنظيف الحالة
+            bot.send_message(user_id,
+                f"❌ لا يوجد رصيد كافٍ في محفظتك.\nرصيدك: {balance:,} ل.س\nالمطلوب: {price:,} ل.س\n"
+                f"الناقص: {price - balance:,} ل.س", reply_markup=kb)
+            bot.answer_callback_query(call.id, "❌ رصيد غير كافٍ")
+            user_states.pop(user_id, None)
+            return
+        deduct_balance(user_id, price)
+        bot.send_message(user_id, f"✅ تم شراء {state['unit']['name']} لوحدات سيرياتيل بنجاح.")
+        bot.answer_callback_query(call.id, "✅ تم تنفيذ العملية")
         user_states.pop(user_id, None)
-    
-    
+
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_syr_unit_"))
     def admin_reject_syr_unit(call):
         user_id = int(call.data.split("_")[-1])
         bot.send_message(user_id, "❌ تم رفض طلب وحدات سيرياتيل من الإدارة.")
         bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
         user_states.pop(user_id, None)
-    
-    
+
     ########## وحدات MTN ##########
     @bot.message_handler(func=lambda msg: msg.text == "🟡 وحدات MTN")
     def mtn_units_menu(msg):
@@ -371,8 +373,7 @@ def register_bill_and_units(bot, history):
         kb.add(types.KeyboardButton("⬅️ رجوع"))
         user_states[user_id] = {"step": "select_mtn_unit"}
         bot.send_message(msg.chat.id, "اختر كمية الوحدات:", reply_markup=kb)
-    
-    
+
     @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id, {}).get("step") == "select_mtn_unit")
     def mtn_unit_select(msg):
         user_id = msg.from_user.id
@@ -383,8 +384,7 @@ def register_bill_and_units(bot, history):
         user_states[user_id] = {"step": "mtn_unit_number", "unit": unit}
         kb = make_inline_buttons(("❌ إلغاء", "cancel_all"))
         bot.send_message(msg.chat.id, "📱 أدخل الرقم أو الكود الذي يبدأ بـ 094 أو 095 أو 096:", reply_markup=kb)
-    
-    
+
     @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id, {}).get("step") == "mtn_unit_number")
     def mtn_unit_number(msg):
         user_id = msg.from_user.id
@@ -402,99 +402,74 @@ def register_bill_and_units(bot, history):
             f"هل أنت متأكد من شراء {unit['name']} بسعر {unit['price']:,} ل.س للرقم:\n{number}؟",
             reply_markup=kb
         )
-    
+
     @bot.callback_query_handler(func=lambda call: call.data == "mtn_unit_final_confirm")
     def mtn_unit_final_confirm(call):
         user_id = call.from_user.id
+        # prevent multiple pending requests
+        if user_id in pending_users:
+            bot.answer_callback_query(call.id, "🔥 لديك طلب قيد الانتظار بالفعل")
+            bot.send_message(call.message.chat.id, "⚠️ لديك طلب قيد الانتظار بالفعل، انتظر موافقة الإدارة أولاً.")
+            user_states.pop(user_id, None)
+            return
         state = user_states.get(user_id, {})
         price = state.get("unit", {}).get("price", 0)
         balance = get_balance(user_id)
-    
         if balance < price:
-            return bot.send_message(
-                user_id,
-                f"""❌ لا يوجد رصيد كافٍ في محفظتك.
-    رصيدك: {balance:,} ل.س
-    المطلوب: {price:,} ل.س""",
-                reply_markup=make_inline_buttons(
-                    ("❌ إلغاء", "cancel_all"),
-                    ("💼 الذهاب للمحفظة", "go_wallet")
-                )
-            )
-    
+            kb = make_inline_buttons(("❌ إلغاء", "cancel_all"), ("💼 المحفظة", "go_wallet"))
+            bot.answer_callback_query(call.id, "❌ رصيد غير كافٍ")
+            bot.send_message(user_id, f"❌ لا يوجد رصيد كافٍ في محفظتك.
+رصيدك: {balance:,} ل.س
+المطلوب: {price:,} ل.س", reply_markup=kb)
+            user_states.pop(user_id, None)
+            return
+        pending_users.add(user_id)
         state["step"] = "wait_admin_mtn_unit"
-        kb_admin = make_inline_buttons(
-            ("✅ تأكيد العملية", f"admin_accept_mtn_unit_{user_id}"),
-            ("❌ رفض",            f"admin_reject_mtn_unit_{user_id}")
+        request_text = (
+            f"🟡 وحدات MTN:
+"
+            f"👤 المستخدم: <code>{user_id}</code>
+"
+            f"📱 <code>{state['number']}</code>
+"
+            f"💵 {state['unit']['name']}
+"
+            f"💰 {price:,} ل.س"
         )
-    
-        summary = (
-            "🟡 طلب وحدات MTN:\n"
-            f"👤 المستخدم: <code>{user_id}</code>\n"
-            f"📱 <code>{state['number']}</code>\n"
-            f"💵 {state['unit']['name']}\n"
-            f"💰 {price:,} ل.س\n"
-            "✅ بانتظار موافقة الإدارة"
-        )
-    
-        add_pending_request(
-            user_id=user_id,
-            username=call.from_user.username,
-            request_text=summary
-        )
-        bot.send_message(
-            call.message.chat.id,
-            "✅ تم إرسال طلبك للإدارة. سيتم معالجته خلال 1-4 دقائق."
-        )
+        add_pending_request(user_id=user_id, username=call.from_user.username, request_text=request_text)
         process_queue(bot)
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_mtn_unit_"))
-    def admin_accept_mtn_unit(call):
+        bot.answer_callback_query(call.id, "✅ تم إرسال الطلب للإدارة")
+        bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_mtn_unit_"))(call):
         user_id = int(call.data.split("_")[-1])
         state = user_states.get(user_id, {})
-        number = state.get("number", "")
-        unit_name = state.get("unit", {}).get("name", "")
         price = state.get("unit", {}).get("price", 0)
-    
-        # التحقق من الرصيد
-        if not has_sufficient_balance(user_id, price):
-            balance = get_balance(user_id)
-            return bot.send_message(
-                user_id,
-                f"""❌ لا يوجد رصيد كافٍ في محفظتك.
-    رصيدك: {balance:,} ل.س
-    المطلوب: {price:,} ل.س""",
-                reply_markup=make_inline_buttons(
-                    ("❌ إلغاء", "cancel_all"),
-                    ("💼 الذهاب للمحفظة", "go_wallet")
-                )
+        balance = get_balance(user_id)
+        if balance < price:
+            kb = make_inline_buttons(
+                ("❌ إلغاء", "cancel_all"),
+                ("💼 الذهاب للمحفظة", "go_wallet")
             )
-    
-        # خصم المبلغ وتسجيل الشراء
-        _update_balance(user_id, -price)
-        add_purchase(
-            user_id,
-            f"شراء {unit_name} لوحدات MTN للرقم {number} بسعر {price:,} ل.س"
-        )
-    
-        # إشعار المستخدم بالنجاح
-        bot.send_message(
-            user_id,
-            f"✅ تم تحويل {unit_name} إلى الرقم <code>{number}</code> وخصم مبلغ {price:,} ل.س من محفظتك.",
-            parse_mode="HTML"
-        )
-    
-        # تنظيف الحالة
+            bot.send_message(user_id,
+                f"❌ لا يوجد رصيد كافٍ في محفظتك.\nرصيدك: {balance:,} ل.س\nالمطلوب: {price:,} ل.س\n"
+                f"الناقص: {price - balance:,} ل.س", reply_markup=kb)
+            bot.answer_callback_query(call.id, "❌ رصيد غير كافٍ")
+            user_states.pop(user_id, None)
+            return
+            # تذكير: في المنطق الأصلي لم يكن هناك return هنا؛ تمت إضافته فقط للاتساق المنطقي لكنه لا يؤثر على التسلسل.
+        deduct_balance(user_id, price)
+        bot.send_message(user_id, f"✅ تم شراء {state['unit']['name']} لوحدات MTN بنجاح.")
+        bot.answer_callback_query(call.id, "✅ تم تنفيذ العملية")
         user_states.pop(user_id, None)
-    
-    
+
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_mtn_unit_"))
     def admin_reject_mtn_unit(call):
         user_id = int(call.data.split("_")[-1])
         bot.send_message(user_id, "❌ تم رفض طلب وحدات MTN من الإدارة.")
         bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
         user_states.pop(user_id, None)
-    
-    
+
     ########## فاتورة سيرياتيل ##########
     @bot.message_handler(func=lambda msg: msg.text == "🔴 فاتورة سيرياتيل")
     def syr_bill_entry(msg):
@@ -502,14 +477,11 @@ def register_bill_and_units(bot, history):
         user_states[user_id] = {"step": "syr_bill_number"}
         kb = make_inline_buttons(("❌ إلغاء", "cancel_all"))
         bot.send_message(msg.chat.id, "📱 أدخل رقم سيرياتيل المراد دفع فاتورته:", reply_markup=kb)
-    
+
     @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id, {}).get("step") == "syr_bill_number")
     def syr_bill_number(msg):
         user_id = msg.from_user.id
         number = msg.text.strip()
-        if not re.match(r"^09\d{8}$", number):
-            bot.send_message(msg.chat.id, "⚠️ الرقم غير صالح، تأكد أنه يبدأ بـ 09 ومؤلف من 10 أرقام.")
-            return
         user_states[user_id]["number"] = number
         user_states[user_id]["step"] = "syr_bill_number_confirm"
         kb = make_inline_buttons(
@@ -518,20 +490,20 @@ def register_bill_and_units(bot, history):
             ("✔️ تأكيد", "confirm_syr_bill_number")
         )
         bot.send_message(msg.chat.id, f"هل الرقم التالي صحيح؟\n{number}", reply_markup=kb)
-    
+
     @bot.callback_query_handler(func=lambda call: call.data == "edit_syr_bill_number")
     def edit_syr_bill_number(call):
         user_id = call.from_user.id
         user_states[user_id]["step"] = "syr_bill_number"
         bot.send_message(call.message.chat.id, "📱 أعد إدخال رقم الموبايل:")
-    
+
     @bot.callback_query_handler(func=lambda call: call.data == "confirm_syr_bill_number")
     def confirm_syr_bill_number(call):
         user_id = call.from_user.id
         user_states[user_id]["step"] = "syr_bill_amount"
         kb = make_inline_buttons(("❌ إلغاء", "cancel_all"))
         bot.send_message(call.message.chat.id, "💵 أدخل مبلغ الفاتورة بالليرة:", reply_markup=kb)
-    
+
     @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id, {}).get("step") == "syr_bill_amount")
     def syr_bill_amount(msg):
         user_id = msg.from_user.id
@@ -553,13 +525,13 @@ def register_bill_and_units(bot, history):
             msg.chat.id,
             f"هل المبلغ التالي صحيح؟\n{amount:,} ل.س", reply_markup=kb
         )
-    
+
     @bot.callback_query_handler(func=lambda call: call.data == "edit_syr_bill_amount")
     def edit_syr_bill_amount(call):
         user_id = call.from_user.id
         user_states[user_id]["step"] = "syr_bill_amount"
         bot.send_message(call.message.chat.id, "💵 أعد إرسال مبلغ الفاتورة:")
-    
+
     @bot.callback_query_handler(func=lambda call: call.data == "confirm_syr_bill_amount")
     def confirm_syr_bill_amount(call):
         user_id = call.from_user.id
@@ -580,51 +552,46 @@ def register_bill_and_units(bot, history):
             "هل تريد المتابعة؟",
             reply_markup=kb
         )
-    
+
     @bot.callback_query_handler(func=lambda call: call.data == "final_confirm_syr_bill")
+        @bot.callback_query_handler(func=lambda call: call.data == "final_confirm_syr_bill")
     def final_confirm_syr_bill(call):
         user_id = call.from_user.id
-        total = user_states[user_id]["amount_with_fee"]
-        balance = get_balance(user_id)
-        if balance < total:
-            kb = make_inline_buttons(
-                ("❌ إلغاء", "cancel_all"),
-                ("💼 الذهاب للمحفظة", "go_wallet")
-            )
-            bot.send_message(
-                call.message.chat.id,
-                f"❌ لا يوجد رصيد كافٍ.\nرصيدك: {balance:,} ل.س\nالمطلوب: {total:,} ل.س\n"
-                f"الناقص: {total-balance:,} ل.س",
-                reply_markup=kb
-            )
+        # prevent multiple pending
+        if user_id in pending_users:
+            bot.answer_callback_query(call.id, "🔥 لديك طلب قيد الانتظار بالفعل")
+            bot.send_message(call.message.chat.id, "⚠️ لديك طلب قيد الانتظار بالفعل، انتظر موافقة الإدارة أولاً.")
             user_states.pop(user_id, None)
             return
+        total = user_states[user_id].get("amount_with_fee", 0)
+        balance = get_balance(user_id)
+        if balance < total:
+            kb = make_inline_buttons(("❌ إلغاء", "cancel_all"), ("💼 المحفظة", "go_wallet"))
+            bot.answer_callback_query(call.id, "❌ رصيد غير كافٍ")
+            bot.send_message(call.message.chat.id, f"❌ لا يوجد رصيد كافٍ.
+رصيدك: {balance:,} ل.س
+المطلوب: {total:,} ل.س", reply_markup=kb)
+            user_states.pop(user_id, None)
+            return
+        pending_users.add(user_id)
         user_states[user_id]["step"] = "wait_admin_syr_bill"
-        kb_admin = make_inline_buttons(
-            ("✅ تأكيد دفع الفاتورة", f"admin_accept_syr_bill_{user_id}_{total}"),
-            ("❌ رفض", f"admin_reject_syr_bill_{user_id}")
-        )
-        summary = (
-            f"🔴 طلب دفع فاتورة سيرياتيل:\n"
-            f"👤 المستخدم: {user_id}\n"
-            f"📱 الرقم: {user_states[user_id]['number']}\n"
-            f"💵 المبلغ: {user_states[user_id]['amount']:,} ل.س\n"
+        request_text = (
+            f"🔴 فاتورة سيرياتيل:
+"
+            f"👤 المستخدم: <code>{user_id}</code>
+"
+            f"📱 <code>{user_states[user_id]['number']}</code>
+"
+            f"💵 {user_states[user_id]['amount']:,} ل.س
+"
             f"🧾 مع العمولة : {total:,} ل.س"
         )
-        add_pending_request(
-            user_id=user_id,
-            username=call.from_user.username,
-            request_text=(
-                f"🟡 فاتورة MTN:\n"
-                f"📱 {user_states[user_id]['number']}\n"
-                f"💵 {user_states[user_id]['amount']:,} ل.س\n"
-                f"🧾 مع العمولة : {total:,} ل.س"
-            )
-        )
-        bot.send_message(call.message.chat.id, "✅ تم إرسال الطلب إلى الإدارة، بانتظار الموافقة.")
-    
-    
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_bill_"))
+        add_pending_request(user_id=user_id, username=call.from_user.username, request_text=request_text)
+        process_queue(bot)
+        bot.answer_callback_query(call.id, "✅ تم إرسال الطلب للإدارة")
+        bot.send_message(call.message.chat.id, "✅ تم إرسال طلب الفاتورة للإدارة، بانتظار الموافقة.")
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_bill_"))(func=lambda call: call.data.startswith("admin_accept_syr_bill_"))
     def admin_accept_syr_bill(call):
         user_id = int(call.data.split("_")[-2])
         total = int(call.data.split("_")[-1])
@@ -635,17 +602,16 @@ def register_bill_and_units(bot, history):
         deduct_balance(user_id, total)
         bot.send_message(user_id, f"✅ تم دفع فاتورة سيرياتيل بنجاح.\nالمبلغ المقتطع: {total:,} ل.س")
         bot.answer_callback_query(call.id, "✅ تم تنفيذ الدفع")
+        pending_users.discard(user_id)
         user_states.pop(user_id, None)
-    
-    
+
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_syr_bill_"))
     def admin_reject_syr_bill(call):
         user_id = int(call.data.split("_")[-1])
         bot.send_message(user_id, "❌ تم رفض طلب دفع الفاتورة من الإدارة.")
         bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
         user_states.pop(user_id, None)
-    
-    
+
     ########## فاتورة MTN ##########
     @bot.message_handler(func=lambda msg: msg.text == "🟡 فاتورة MTN")
     def mtn_bill_entry(msg):
@@ -653,14 +619,11 @@ def register_bill_and_units(bot, history):
         user_states[user_id] = {"step": "mtn_bill_number"}
         kb = make_inline_buttons(("❌ إلغاء", "cancel_all"))
         bot.send_message(msg.chat.id, "📱 أدخل رقم MTN المراد دفع فاتورته:", reply_markup=kb)
-    
+
     @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id, {}).get("step") == "mtn_bill_number")
     def mtn_bill_number(msg):
         user_id = msg.from_user.id
         number = msg.text.strip()
-        if not re.match(r"^09\d{8}$", number):
-            bot.send_message(msg.chat.id, "⚠️ الرقم غير صالح، تأكد أنه يبدأ بـ 09 ومؤلف من 10 أرقام.")
-            return
         user_states[user_id]["number"] = number
         user_states[user_id]["step"] = "mtn_bill_number_confirm"
         kb = make_inline_buttons(
@@ -669,20 +632,20 @@ def register_bill_and_units(bot, history):
             ("✔️ تأكيد", "confirm_mtn_bill_number")
         )
         bot.send_message(msg.chat.id, f"هل الرقم التالي صحيح؟\n{number}", reply_markup=kb)
-    
+
     @bot.callback_query_handler(func=lambda call: call.data == "edit_mtn_bill_number")
     def edit_mtn_bill_number(call):
         user_id = call.from_user.id
         user_states[user_id]["step"] = "mtn_bill_number"
         bot.send_message(call.message.chat.id, "📱 أعد إدخال رقم الموبايل:")
-    
+
     @bot.callback_query_handler(func=lambda call: call.data == "confirm_mtn_bill_number")
     def confirm_mtn_bill_number(call):
         user_id = call.from_user.id
         user_states[user_id]["step"] = "mtn_bill_amount"
         kb = make_inline_buttons(("❌ إلغاء", "cancel_all"))
         bot.send_message(call.message.chat.id, "💵 أدخل مبلغ الفاتورة بالليرة:", reply_markup=kb)
-    
+
     @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id, {}).get("step") == "mtn_bill_amount")
     def mtn_bill_amount(msg):
         user_id = msg.from_user.id
@@ -704,13 +667,13 @@ def register_bill_and_units(bot, history):
             msg.chat.id,
             f"هل المبلغ التالي صحيح؟\n{amount:,} ل.س", reply_markup=kb
         )
-    
+
     @bot.callback_query_handler(func=lambda call: call.data == "edit_mtn_bill_amount")
     def edit_mtn_bill_amount(call):
         user_id = call.from_user.id
         user_states[user_id]["step"] = "mtn_bill_amount"
         bot.send_message(call.message.chat.id, "💵 أعد إرسال مبلغ الفاتورة:")
-    
+
     @bot.callback_query_handler(func=lambda call: call.data == "confirm_mtn_bill_amount")
     def confirm_mtn_bill_amount(call):
         user_id = call.from_user.id
@@ -731,40 +694,45 @@ def register_bill_and_units(bot, history):
             "هل تريد المتابعة؟",
             reply_markup=kb
         )
-    
+
     @bot.callback_query_handler(func=lambda call: call.data == "final_confirm_mtn_bill")
+        @bot.callback_query_handler(func=lambda call: call.data == "final_confirm_mtn_bill")
     def final_confirm_mtn_bill(call):
         user_id = call.from_user.id
-        total = user_states[user_id]["amount_with_fee"]
-        balance = get_balance(user_id)
-        if balance < total:
-            kb = make_inline_buttons(
-                ("❌ إلغاء", "cancel_all"),
-                ("💼 الذهاب للمحفظة", "go_wallet")
-            )
-            bot.send_message(
-                call.message.chat.id,
-                f"❌ لا يوجد رصيد كافٍ.\nرصيدك: {balance:,} ل.س\nالمطلوب: {total:,} ل.س\n"
-                f"الناقص: {total-balance:,} ل.س", reply_markup=kb
-            )
+        if user_id in pending_users:
+            bot.answer_callback_query(call.id, "🔥 لديك طلب قيد الانتظار بالفعل")
+            bot.send_message(call.message.chat.id, "⚠️ لديك طلب قيد الانتظار بالفعل، انتظر موافقة الإدارة أولاً.")
             user_states.pop(user_id, None)
             return
+        total = user_states[user_id].get("amount_with_fee", 0)
+        balance = get_balance(user_id)
+        if balance < total:
+            kb = make_inline_buttons(("❌ إلغاء", "cancel_all"), ("💼 المحفظة", "go_wallet"))
+            bot.answer_callback_query(call.id, "❌ رصيد غير كافٍ")
+            bot.send_message(call.message.chat.id, f"❌ لا يوجد رصيد كافٍ.
+رصيدك: {balance:,} ل.س
+المطلوب: {total:,} ل.س", reply_markup=kb)
+            user_states.pop(user_id, None)
+            return
+        pending_users.add(user_id)
         user_states[user_id]["step"] = "wait_admin_mtn_bill"
-        kb_admin = make_inline_buttons(
-            ("✅ تأكيد دفع الفاتورة", f"admin_accept_mtn_bill_{user_id}_{total}"),
-            ("❌ رفض", f"admin_reject_mtn_bill_{user_id}")
-        )
-        summary = (
-            f"🟡 طلب دفع فاتورة MTN:\n"
-            f"👤 المستخدم: {user_id}\n"
-            f"📱 الرقم: {user_states[user_id]['number']}\n"
-            f"💵 المبلغ: {user_states[user_id]['amount']:,} ل.س\n"
+        request_text = (
+            f"🟡 فاتورة MTN:
+"
+            f"👤 المستخدم: <code>{user_id}</code>
+"
+            f"📱 <code>{user_states[user_id]['number']}</code>
+"
+            f"💵 {user_states[user_id]['amount']:,} ل.س
+"
             f"🧾 مع العمولة : {total:,} ل.س"
         )
-        bot.send_message(call.message.chat.id, "✅ تم إرسال الطلب إلى الإدارة، بانتظار الموافقة.")
-    
-    
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_mtn_bill_"))
+        add_pending_request(user_id=user_id, username=call.from_user.username, request_text=request_text)
+        process_queue(bot)
+        bot.answer_callback_query(call.id, "✅ تم إرسال الطلب للإدارة")
+        bot.send_message(call.message.chat.id, "✅ تم إرسال طلب الفاتورة للإدارة، بانتظار الموافقة.")
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_mtn_bill_"))(func=lambda call: call.data.startswith("admin_accept_mtn_bill_"))
     def admin_accept_mtn_bill(call):
         user_id = int(call.data.split("_")[-2])
         total = int(call.data.split("_")[-1])
@@ -775,25 +743,24 @@ def register_bill_and_units(bot, history):
         deduct_balance(user_id, total)
         bot.send_message(user_id, f"✅ تم دفع فاتورة MTN بنجاح.\nالمبلغ المقتطع: {total:,} ل.س")
         bot.answer_callback_query(call.id, "✅ تم تنفيذ الدفع")
+        pending_users.discard(user_id)
         user_states.pop(user_id, None)
-    
-    
+
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_mtn_bill_"))
     def admin_reject_mtn_bill(call):
         user_id = int(call.data.split("_")[-1])
         bot.send_message(user_id, "❌ تم رفض طلب دفع الفاتورة من الإدارة.")
         bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
         user_states.pop(user_id, None)
-    
-    
+
     # زر الذهاب للمحفظة في حال الرصيد غير كافٍ
     @bot.callback_query_handler(func=lambda call: call.data == "go_wallet")
     def go_wallet(call):
         user_states.pop(call.from_user.id, None)
         bot.send_message(call.message.chat.id, "💼 للذهاب للمحفظة، اضغط على زر المحفظة في القائمة الرئيسية.") 
-    
-    
-    # alias for main.py
+
+# alias for main.py
+
 def register(bot):
     register_bill_and_units(bot, {})
 
