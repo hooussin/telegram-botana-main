@@ -109,10 +109,17 @@ def transfer_balance(from_user_id: int, to_user_id: int, amount: int, fee: int =
 
 # المشتريات
 def get_purchases(user_id: int, limit: int = 10):
+    # حذف السجلات الأقدم من 36 ساعة عند الاستعلام
+    now = datetime.utcnow()
+    expire_time = now - timedelta(hours=36)
     table = get_table(PURCHASES_TABLE)
+    # حذف القديم
+    table.delete().eq("user_id", user_id).lt("expire_at", now.isoformat()).execute()
+    # جلب المشتريات الفعالة فقط
     response = (
         table.select("product_name", "price", "created_at", "player_id", "expire_at")
         .eq("user_id", user_id)
+        .gt("expire_at", now.isoformat())
         .order("created_at", desc=True)
         .limit(limit)
         .execute()
@@ -180,11 +187,6 @@ def get_all_products():
 def get_product_by_id(product_id: int):
     response = get_table(PRODUCTS_TABLE).select("*").eq("id", product_id).limit(1).execute()
     return response.data[0] if response.data else None
-
-# الدالة المطلوبة لتصحيح الاستيراد
-def _select_single(table_name, field, value):
-    response = get_table(table_name).select(field).eq(field, value).limit(1).execute()
-    return response.data[0][field] if response.data else None
 
 # الدالة المطلوبة لتصحيح الاستيراد
 def _select_single(table_name, field, value):
