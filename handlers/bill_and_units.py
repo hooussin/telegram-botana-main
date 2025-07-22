@@ -565,8 +565,7 @@ def register_bill_and_units(bot, history):
             f"💵 {user_states[user_id]['amount']:,} ل.س\n"
             f"🧾 مع العمولة : {total:,} ل.س"
         )
-    )
-    bot.send_message(call.message.chat.id, "✅ تم إرسال الطلب إلى الإدارة، بانتظار الموافقة.")
+        bot.send_message(call.message.chat.id, "✅ تم إرسال الطلب إلى الإدارة، بانتظار الموافقة.")
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_bill_"))
     def admin_accept_syr_bill(call):
