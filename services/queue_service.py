@@ -38,7 +38,7 @@ def get_next_request():
     res = (
         client.table(QUEUE_TABLE)
         .select("*")
-        .order("created_at", True)
+        .order("created_at", ascending=True)   # هنا مرر ascending كوسيط مسمّى
         .limit(1)
         .execute()
     )
