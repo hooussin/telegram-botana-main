@@ -68,16 +68,10 @@ def get_next_request():
 
 def update_request_admin_message_id(request_id: int, message_id: int):
     """
-    تخزين معرف رسالة الأدمن المسؤولة عن هذا الطلب،
-    حتى نتمكّن من حذفها لاحقًا عند التأجيل أو القبول.
+    دالة وهمية لأن العمود admin_message_id غير موجود في الجدول.
+    فقط تسجل محاولات التحديث ولا تفعل شيئًا.
     """
-    try:
-        client.table(QUEUE_TABLE) \
-            .update({"admin_message_id": message_id}) \
-            .eq("id", request_id) \
-            .execute()
-    except Exception:
-        logging.exception(f"Error updating admin_message_id for request {request_id}")
+    logging.debug(f"Skipping update_request_admin_message_id for request {request_id}, column not present.")
 
 
 def postpone_request(request_id: int):
@@ -117,6 +111,7 @@ def process_queue(bot):
         )
 
         msg = bot.send_message(ADMIN_MAIN_ID, text, reply_markup=keyboard)
+        # بدونه لتفادي الخطأ:
         update_request_admin_message_id(request_id, msg.message_id)
     except Exception:
         logging.exception("Error in process_queue, continuing...")
