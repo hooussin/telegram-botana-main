@@ -12,7 +12,7 @@ from database.db import get_table
 from services.wallet_service import (
     register_user_if_not_exist,
     get_all_products, get_product_by_id, get_balance, add_balance,
-    get_purchases, get_deposit_transfers
+    get_purchases, get_deposit_transfers, deduct_balance, add_purchase
 )
 from services.cleanup_service import delete_inactive_users
 from services.recharge_service import validate_recharge_code
@@ -33,9 +33,11 @@ if not os.path.isfile(SECRET_CODES_FILE):
     with open(SECRET_CODES_FILE, "w", encoding="utf-8") as f:
         json.dump({}, f)
 
+
 def load_code_operations():
     with open(SECRET_CODES_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
+
 
 def save_code_operations(data):
     with open(SECRET_CODES_FILE, "w", encoding="utf-8") as f:
@@ -45,6 +47,7 @@ VALID_SECRET_CODES = [
     "363836369", "36313251", "646460923",
     "91914096", "78708501", "06580193"
 ]
+
 
 def register(bot, history):
     # ========== هاندلرات إدارة الطابور ==========
@@ -62,11 +65,10 @@ def register(bot, history):
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_approve_"))
     def handle_admin_approve_queue(call):
-        # 1) استخرج المعرف
         request_id = int(call.data.split("_")[-1])
-        # 2) جلب بيانات الطلب
+        # جلب بيانات الطلب
         res = get_table("pending_requests") \
-              .select("user_id,request_text") \
+              .select("user_id", "request_text", "username") \
               .eq("id", request_id) \
               .execute()
         if not res.data:
@@ -74,46 +76,110 @@ def register(bot, history):
             return
         req = res.data[0]
         user_id = req["user_id"]
-
-        # 3) أرسل رسالة نصّية أو صورة للعميل
-        bot.send_message(
-            user_id,
-            f"✅ طلبك رقم {request_id} تمت الموافقة عليه!\n{req['request_text']}"
-        )
-        # مثال لإرسال صورة:
-        # bot.send_photo(user_id, photo="FILE_ID", caption="تم تنفيذ طلبك بالصورة المرفقة.")
-
-        # 4) حذف الطلب من قاعدة البيانات
+        request_text = req["request_text"]
+        # حذف الصف من الطابور
         delete_pending_request(request_id)
-
-        # 5) إعلام الأدمن وإزالة الأزرار
-        bot.answer_callback_query(call.id, "✅ تمت الموافقة وحُذف الطلب.")
-        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+        # حذف رسالة الطابور
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        # إرسال تفاصيل الطلب للأدمن
+        detail_keyboard = types.InlineKeyboardMarkup(row_width=2)
+        detail_keyboard.add(
+            types.InlineKeyboardButton("❌ إلغاء", callback_data=f"admin_cancel_{request_id}"),
+            types.InlineKeyboardButton("✅ تأكيد", callback_data=f"admin_confirm_{request_id}")
+        )
+        bot.send_message(
+            call.message.chat.id,
+            f"📦 تفاصيل طلب العميل:\n{request_text}",
+            reply_markup=detail_keyboard
+        )
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_"))
     def handle_admin_reject_queue(call):
         request_id = int(call.data.split("_")[-1])
-        # جلب user_id فقط
+        # جلب بيانات الطلب
         res = get_table("pending_requests") \
-              .select("user_id") \
+              .select("user_id", "request_text", "username") \
+              .eq("id", request_id) \
+              .execute()
+        if not res.data:
+            bot.answer_callback_query(call.id, "❌ الطلب غير موجود أو مُعالج بالفعل.")
+            return
+        req = res.data[0]
+        user_id = req["user_id"]
+        req_text = req["request_text"]
+        username = req.get("username")
+        # إعادة الطلب لنهاية الطابور
+        delete_pending_request(request_id)
+        add_pending_request(user_id, username, req_text)
+        # حذف رسالة الطابور
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        # إخطار الأدمن
+        bot.send_message(ADMIN_MAIN_ID, "✅ تم تأجيل الدور بنجاح.")
+        # إخطار العميل
+        bot.send_message(
+            user_id,
+            "⏳ تم تأجيل طلبك بسبب الضغط، سيتم معالجته خلال 5–10 دقائق."
+        )
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_confirm_"))
+    def handle_admin_confirm(call):
+        request_id = int(call.data.split("_")[-1])
+        # جلب بيانات الطلب
+        res = get_table("pending_requests") \
+              .select("user_id", "request_text") \
+              .eq("id", request_id) \
+              .execute()
+        if not res.data:
+            bot.answer_callback_query(call.id, "❌ الطلب غير موجود أو مُعالج بالفعل.")
+            return
+        req = res.data[0]
+        user_id = req["user_id"]
+        text = req["request_text"]
+        # استخراج السعر
+        m_price = re.search(r"💵 السعر: ([\d,]+) ل\.س", text)
+        price = int(m_price.group(1).replace(",", "")) if m_price else 0
+        # استخراج اسم المنتج
+        m_prod = re.search(r"🔖 نوع العملية: (.+)", text)
+        product_name = m_prod.group(1) if m_prod else ""
+        # خصم المبلغ وتسجيل الشراء
+        deduct_balance(user_id, price)
+        add_purchase(user_id, product_name, price)
+        # حذف العملية من قاعدة البيانات
+        delete_pending_request(request_id)
+        # حذف رسالة التفاصيل
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        # إخطار العميل
+        bot.send_message(
+            user_id,
+            f"✅ تم تنفيذ طلبك: {product_name}، وتم خصم {price:,} ل.س من محفظتك."
+        )
+        # إخطار الأدمن
+        bot.answer_callback_query(call.id, "✅ تم تأكيد وتنفيذ الطلب.")
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_cancel_"))
+    def handle_admin_cancel(call):
+        request_id = int(call.data.split("_")[-1])
+        # جلب بيانات الطلب
+        res = get_table("pending_requests") \
+              .select("user_id", "request_text") \
               .eq("id", request_id) \
               .execute()
         if not res.data:
             bot.answer_callback_query(call.id, "❌ الطلب غير موجود أو مُعالج بالفعل.")
             return
         user_id = res.data[0]["user_id"]
-
-        # إرسال رسالة رفض للعميل
+        # حذف العملية
+        delete_pending_request(request_id)
+        # حذف رسالة التفاصيل
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        # إخطار الأدمن
+        bot.answer_callback_query(call.id, "❌ تم إلغاء الطلب.")
+        # توجيه لإرسال رسالة أو صورة للعميل
         bot.send_message(
-            user_id,
-            f"❌ طلبك رقم {request_id} تم رفضه. يمكنك المحاولة مرة أخرى لاحقًا."
+            call.message.chat.id,
+            "📤 يمكنك الآن إرسال رسالة نصية أو صورة لتوضيح سبب الرفض للعميل."
         )
 
-        # حذف الطلب من قاعدة البيانات
-        delete_pending_request(request_id)
-
-        bot.answer_callback_query(call.id, "❌ تم رفض الطلب وحُذف من الطابور.")
-        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
     # ==========================================
 
     # ---------- تأكيد/رفض شحن المحفظة عبر أكواد وكلاء ----------
@@ -155,7 +221,8 @@ def register(bot, history):
         reason = msg.text.strip()
         bot.send_message(
             user_id,
-            f"❌ تم رفض عملية الشحن.\n📝 السبب: {reason}"
+            f"❌ تم رفض عملية الشحن.
+📝 السبب: {reason}"
         )
         bot.answer_callback_query(call.id, "❌ تم رفض العملية")
         bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
@@ -164,7 +231,6 @@ def register(bot, history):
             .eq("id", call.message.message_id) \
             .execute()
         clear_pending_request(user_id)
-
 
     # ---------- تقرير الأكواد السرية ----------
     @bot.message_handler(commands=["تقرير_الوكلاء"])
@@ -229,5 +295,3 @@ def register(bot, history):
         register_user_if_not_exist(user_id)
         add_balance(user_id, amount)
         bot.send_message(msg.chat.id, f"✅ تم تحويل {amount:,} ل.س إلى محفظتك عبر وكيل.")
-        admin_msg = f"✅ شحن {amount:,} ل.س للمستخدم `{user_id}` عبر كود `{code}`"
-        add_pending_request(user_id, msg.from_user.username, admin_msg)
