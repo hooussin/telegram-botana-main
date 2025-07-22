@@ -8,8 +8,8 @@ from services.wallet_service import (
     register_user_if_not_exist,
     add_purchase,
     has_sufficient_balance,
-,
-    _update_balance)
+    _update_balance
+)
 from config import ADMIN_MAIN_ID
 from services.queue_service import add_pending_request, process_queue
 
