@@ -4,26 +4,23 @@ from database.db import get_table
 from config import ADMIN_MAIN_ID
 
 
+def delete_pending_request(request_id: int) -> None:
+    """
+    يحذف صفّ الطلب ذي الـ id المحدد من جدول pending_requests
+    """
+    get_table("pending_requests") \
+        .delete() \
+        .eq("id", request_id) \
+        .execute()
+
+
 def process_queue(bot):
     """
-    خدمة الطابور: ترسل للأدمن طلبًا واحدًا فقط في كل مرة.
-    إذا أنهى الأدمن الطلب (done/cancel)، ينتقل فورًا للطلب التالي.
+    خدمة الطابور: ترسل للأدمن طلبًا واحدًا فقط في كل مرة،
+    ثم تحذفه من جدول pending_requests وتنتظر دقيقتين قبل الطلب التالي.
     """
     while True:
-        # 1) هل يوجد طلب قيد التنفيذ؟
-        processing = (
-            get_table("pending_requests")
-            .select("*")
-            .eq("status", "processing")
-            .execute()
-        ).data
-
-        if processing:
-            # يوجد طلب قيد التنفيذ ‑ انتظر قليلاً ثم تحقق مجددًا
-            time.sleep(3)
-            continue
-
-        # 2) إذا لا يوجد، جلب أقدم طلب بالحالة pending
+        # 1) جلب أقدم طلب بالحالة pending
         response = (
             get_table("pending_requests")
             .select("*")
@@ -34,31 +31,28 @@ def process_queue(bot):
         )
         data = response.data
 
-        if data:
-            req = data[0]
-
-            # حدِّث الحالة إلى processing
-            (
-                get_table("pending_requests")
-                .update({"status": "processing"})
-                .eq("id", req["id"])
-                .execute()
-            )
-
-            # أرسل الطلب للأدمن
-            msg = (
-                f"🆕 طلب جديد من @{req.get('username','')} (ID: {req['user_id']}):\n"
-                f"{req['request_text']}\n"
-                f"رقم الطلب: {req['id']}\n"
-                f"الرد بـ /done_{req['id']} عند التنفيذ أو /cancel_{req['id']} للإلغاء."
-            )
-            bot.send_message(ADMIN_MAIN_ID, msg)
-
-            # تأخير بسيط لمنع التكرار إذا حدث lag
-            time.sleep(2)
-        else:
+        if not data:
             # لا يوجد طلبات حالياً ‑ انتظر ثم أعد المحاولة
             time.sleep(3)
+            continue
+
+        req = data[0]
+        request_id = req["id"]
+
+        # 2) أرسل الطلب للأدمن
+        msg = (
+            f"🆕 طلب جديد من @{req.get('username','')} (ID: {req['user_id']}):\n"
+            f"{req['request_text']}\n"
+            f"رقم الطلب: {request_id}\n"
+            f"الرد بـ /done_{request_id} عند التنفيذ أو /cancel_{request_id} للإلغاء."
+        )
+        bot.send_message(ADMIN_MAIN_ID, msg)
+
+        # 3) حذف السجل من الجدول فورًا بعد الإرسال
+        delete_pending_request(request_id)
+
+        # 4) تأخير دقيقتين قبل إرسال الطلب التالي
+        time.sleep(120)
 
 
 def add_pending_request(user_id: int, username: str | None, request_text: str) -> None:
@@ -78,5 +72,5 @@ def add_pending_request(user_id: int, username: str | None, request_text: str) -
         "user_id": user_id,
         "username": (username or ""),  # تفادي NULL
         "request_text": request_text,
-        "status": "pending",           # ← السطر المهم لإدارة حالة الطابور
+        "status": "pending",
     }).execute()
