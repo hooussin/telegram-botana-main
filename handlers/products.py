@@ -9,7 +9,7 @@ from database.models.product import Product
 from services.queue_service import add_pending_request, process_queue
 from database.db import client
 
-# المجموعات لحفظ حالة الطلبات
+# حفظ حالة الطلبات
 pending_orders = set()
 user_orders = {}
 
@@ -70,8 +70,7 @@ def clear_user_order(user_id):
     pending_orders.discard(user_id)
 
 # ============= معالجة آيدي اللاعب بعد إدخاله =============
-def handle_player_id(message):
-    bot = message.bot
+def handle_player_id(message, bot):
     user_id = message.from_user.id
     player_id = message.text.strip()
 
@@ -99,7 +98,7 @@ def handle_player_id(message):
         reply_markup=keyboard
     )
 
-# ============= تسجيل الرسائل =============
+# ============= تسجيل الواجهات =============
 def register(bot, history):
     @bot.message_handler(func=lambda msg: msg.text in ["🛒 المنتجات", "💼 المنتجات"])
     def handle_main_product_menu(msg):
@@ -139,8 +138,6 @@ def register(bot, history):
         user_orders[user_id] = {"category": category}
         show_product_options(bot, msg, category)
 
-# ============= تسجيل معالجات الأزرار المضمنة =============
-def setup_inline_handlers(bot, admin_ids):
     @bot.callback_query_handler(func=lambda c: c.data.startswith("select_"))
     def on_select_product(call):
         user_id = call.from_user.id
@@ -163,7 +160,7 @@ def setup_inline_handlers(bot, admin_ids):
         kb = types.InlineKeyboardMarkup()
         kb.add(types.InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_products"))
         msg = bot.send_message(user_id, "💡 أدخل آيدي اللاعب الخاص بك:", reply_markup=kb)
-        bot.register_next_step_handler(msg, handle_player_id)
+        bot.register_next_step_handler(msg, handle_player_id, bot)
 
     @bot.callback_query_handler(func=lambda c: c.data == "back_to_products")
     def back_to_products(call):
