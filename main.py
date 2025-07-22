@@ -19,7 +19,7 @@ from services import wallet_service, queue_service
 admin.register(bot, user_state)
 bill_and_units.register(bot)
 products.register(bot, user_state)
-wallet.register(bot)
+wallet.register(bot, user_state)
 # إذا يوجد دالة register في queue_service أو wallet_service فقط عندها أضفهم هنا:
 # queue_service.register(bot)
 # wallet_service.register(bot)
