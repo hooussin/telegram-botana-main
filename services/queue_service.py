@@ -86,11 +86,10 @@ def add_pending_request(user_id: int, username: str | None, request_text: str) -
 # === مثال handlers لتعليق الأدمن وإرسال نص أو صورة للعميل ===
 # ==================================================================
 
-# أدناه مثال على handlers يجب وضعه في ملف handlers (products.py مثلاً)
-# لمعالجة زر الموافقة وإرسال رسالة/صورة للعميل:
+# تأكد من وجود هذه الاستيرادات في ملف handlers الخاص بك:
+# from services.queue_service import delete_pending_request, get_table
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_approve_"))
-
 def handle_admin_approve(call):
     # استخراج request_id من callback data
     _, _, request_id = call.data.split("_")
@@ -103,15 +102,14 @@ def handle_admin_approve(call):
     req = res.data[0]
     user_id = req["user_id"]
 
-    # مثال: إرسال رسالة نصيّة بصيغة صحيحة
+    # إرسال رسالة نصيّة
     bot.send_message(
         user_id,
-        f"✅ طلبك رقم {request_id} تمت الموافقة عليه!
-{req['request_text']}"
+        f"✅ طلبك رقم {request_id} تمت الموافقة عليه!\n{req['request_text']}"
     )
 
-    # مثال: إرسال صورة (استبدل 'FILE_ID' بمعرّف الصورة الفعلي أو مسار)
-    # bot.send_photo(user_id, photo="FILE_ID", caption="هنا صورة تنفيذ الطلب")
+    # مثال: إرسال صورة
+    # bot.send_photo(user_id, photo="FILE_ID", caption="تم تنفيذ طلبك بالصورة المرفقة.")
 
     # حذف الطلب من القاعدة بعد الرد
     delete_pending_request(request_id)
