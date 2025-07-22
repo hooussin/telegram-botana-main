@@ -282,6 +282,8 @@ def register_bill_and_units(bot, history):
     def syr_unit_number(msg):
         user_id = msg.from_user.id
         number = msg.text.strip()
+        if not re.match(r"^09\d{8}$", number):
+            return bot.send_message(msg.chat.id, "⚠️ الرقم غير صالح، تأكد أنه يبدأ بـ 09 ومؤلف من 10 أرقام.")
         state = user_states[user_id]
         state["number"] = number
         state["step"] = "syr_unit_confirm"
@@ -402,6 +404,8 @@ def register_bill_and_units(bot, history):
     def mtn_unit_number(msg):
         user_id = msg.from_user.id
         number = msg.text.strip()
+        if not re.match(r"^09\d{8}$", number):
+            return bot.send_message(msg.chat.id, "⚠️ الرقم غير صالح، تأكد أنه يبدأ بـ 09 ومؤلف من 10 أرقام.")
         state = user_states[user_id]
         state["number"] = number
         state["step"] = "mtn_unit_confirm"
@@ -508,6 +512,8 @@ def register_bill_and_units(bot, history):
     def syr_bill_number(msg):
         user_id = msg.from_user.id
         number = msg.text.strip()
+        if not re.match(r"^09\d{8}$", number):
+            return bot.send_message(msg.chat.id, "⚠️ الرقم غير صالح، تأكد أنه يبدأ بـ 09 ومؤلف من 10 أرقام.")
         user_states[user_id]["number"] = number
         user_states[user_id]["step"] = "syr_bill_number_confirm"
         kb = make_inline_buttons(
@@ -655,6 +661,8 @@ def register_bill_and_units(bot, history):
     def mtn_bill_number(msg):
         user_id = msg.from_user.id
         number = msg.text.strip()
+        if not re.match(r"^09\d{8}$", number):
+            return bot.send_message(msg.chat.id, "⚠️ الرقم غير صالح، تأكد أنه يبدأ بـ 09 ومؤلف من 10 أرقام.")
         user_states[user_id]["number"] = number
         user_states[user_id]["step"] = "mtn_bill_number_confirm"
         kb = make_inline_buttons(
