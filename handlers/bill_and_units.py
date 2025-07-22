@@ -761,5 +761,8 @@ def register_bill_and_units(bot, history):
         user_states.pop(call.from_user.id, None)
         bot.send_message(call.message.chat.id, "💼 للذهاب للمحفظة، اضغط على زر المحفظة في القائمة الرئيسية.")
 
-# make main.py’s call work
-register = register_bill_and_units
+# لجعل main.py يمرّر فقط bot دون history فيعمل بدون خطأ
+def register(bot):
+    register_bill_and_units(bot, {})
+
+
