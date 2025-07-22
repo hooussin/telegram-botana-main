@@ -98,7 +98,7 @@ def handle_player_id(message, bot):
         reply_markup=keyboard
     )
 
-# ============= تسجيل الواجهات =============
+# ============= تسجيل معالجات الرسائل =============
 def register(bot, history):
     @bot.message_handler(func=lambda msg: msg.text in ["🛒 المنتجات", "💼 المنتجات"])
     def handle_main_product_menu(msg):
@@ -138,6 +138,8 @@ def register(bot, history):
         user_orders[user_id] = {"category": category}
         show_product_options(bot, msg, category)
 
+# ============= تسجيل معالجات الأزرار المضمنة =============
+def setup_inline_handlers(bot, admin_ids):
     @bot.callback_query_handler(func=lambda c: c.data.startswith("select_"))
     def on_select_product(call):
         user_id = call.from_user.id
