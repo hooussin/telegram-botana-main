@@ -90,6 +90,7 @@ def add_pending_request(user_id: int, username: str | None, request_text: str) -
 # لمعالجة زر الموافقة وإرسال رسالة/صورة للعميل:
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_approve_"))
+
 def handle_admin_approve(call):
     # استخراج request_id من callback data
     _, _, request_id = call.data.split("_")
@@ -102,9 +103,12 @@ def handle_admin_approve(call):
     req = res.data[0]
     user_id = req["user_id"]
 
-    # مثال: إرسال رسالة نصيّة
-    bot.send_message(user_id, f"✅ طلبك رقم {request_id} تمت الموافقة عليه!
-{req['request_text']}")
+    # مثال: إرسال رسالة نصيّة بصيغة صحيحة
+    bot.send_message(
+        user_id,
+        f"✅ طلبك رقم {request_id} تمت الموافقة عليه!
+{req['request_text']}"
+    )
 
     # مثال: إرسال صورة (استبدل 'FILE_ID' بمعرّف الصورة الفعلي أو مسار)
     # bot.send_photo(user_id, photo="FILE_ID", caption="هنا صورة تنفيذ الطلب")
