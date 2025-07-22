@@ -2,7 +2,6 @@
 import time
 from database.db import get_table
 from config import ADMIN_MAIN_ID
-from telebot import types
 
 
 def delete_pending_request(request_id: int) -> None:
@@ -42,6 +41,7 @@ def process_queue(bot):
         user_id = req["user_id"]
 
         # 2) تجهيز الزرّين للموافقة أو الرفض
+        from telebot import types
         admin_keyboard = types.InlineKeyboardMarkup(row_width=2)
         admin_keyboard.add(
             types.InlineKeyboardButton(
@@ -81,36 +81,3 @@ def add_pending_request(user_id: int, username: str | None, request_text: str) -
         "request_text": request_text,
         "status": "pending",
     }).execute()
-
-# ==================================================================
-# === مثال handlers لتعليق الأدمن وإرسال نص أو صورة للعميل ===
-# ==================================================================
-
-# تأكد من وجود هذه الاستيرادات في ملف handlers الخاص بك:
-# from services.queue_service import delete_pending_request, get_table
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("admin_approve_"))
-def handle_admin_approve(call):
-    # استخراج request_id من callback data
-    _, _, request_id = call.data.split("_")
-    request_id = int(request_id)
-    # جلب بيانات الطلب من جدول pending_requests
-    res = get_table("pending_requests").select("user_id,request_text").eq("id", request_id).execute()
-    if not res.data:
-        bot.answer_callback_query(call.id, "❌ الطلب غير موجود أو مُعالج بالفعل.")
-        return
-    req = res.data[0]
-    user_id = req["user_id"]
-
-    # إرسال رسالة نصيّة
-    bot.send_message(
-        user_id,
-        f"✅ طلبك رقم {request_id} تمت الموافقة عليه!\n{req['request_text']}"
-    )
-
-    # مثال: إرسال صورة
-    # bot.send_photo(user_id, photo="FILE_ID", caption="تم تنفيذ طلبك بالصورة المرفقة.")
-
-    # حذف الطلب من القاعدة بعد الرد
-    delete_pending_request(request_id)
-    bot.answer_callback_query(call.id, "تمت معالجة الطلب وحُذف من قائمة الانتظار.")
