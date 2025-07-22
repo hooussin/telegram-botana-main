@@ -461,27 +461,34 @@ def register_bill_and_units(bot, history):
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_mtn_unit_"))(call):
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_mtn_unit_"))
+    def admin_accept_mtn_unit(call):
         user_id = int(call.data.split("_")[-1])
         state = user_states.get(user_id, {})
         price = state.get("unit", {}).get("price", 0)
         balance = get_balance(user_id)
+
         if balance < price:
             kb = make_inline_buttons(
                 ("❌ إلغاء", "cancel_all"),
                 ("💼 الذهاب للمحفظة", "go_wallet")
             )
-            bot.send_message(user_id,
-                f"❌ لا يوجد رصيد كافٍ في محفظتك.\nرصيدك: {balance:,} ل.س\nالمطلوب: {price:,} ل.س\n"
-                f"الناقص: {price - balance:,} ل.س", reply_markup=kb)
+            bot.send_message(
+                user_id,
+                f"❌ لا يوجد رصيد كافٍ في محفظتك.\nرصيدك: {balance:,} ل.س\n"
+                f"المطلوب: {price:,} ل.س\nالناقص: {price - balance:,} ل.س",
+                reply_markup=kb
+            )
             bot.answer_callback_query(call.id, "❌ رصيد غير كافٍ")
             user_states.pop(user_id, None)
             return
-            # تذكير: في المنطق الأصلي لم يكن هناك return هنا؛ تمت إضافته فقط للاتساق المنطقي لكنه لا يؤثر على التسلسل.
-        deduct_balance(user_id, price)
+
+        # خصم الرصيد وتأكيد للمستخدم
+        _update_balance(user_id, -price)
         bot.send_message(user_id, f"✅ تم شراء {state['unit']['name']} لوحدات MTN بنجاح.")
         bot.answer_callback_query(call.id, "✅ تم تنفيذ العملية")
         user_states.pop(user_id, None)
+
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_mtn_unit_"))
     def admin_reject_mtn_unit(call):
