@@ -1,5 +1,3 @@
-# handlers/products.py
-
 import logging
 from telebot import types
 from services.wallet_service import register_user_if_not_exist, get_balance
@@ -213,7 +211,6 @@ def setup_inline_handlers(bot, admin_ids):
             username=call.from_user.username,
             request_text=admin_msg
         )
-        # لا تنادِ process_queue(bot) هنا بل يتم ذلك من queue_cooldown_start في admin.py
-
         bot.send_message(user_id, "✅ تم إرسال طلبك للإدارة. سيتم معالجته خلال مدة من 1 إلى 4 دقائق. لن تتمكن من تقديم طلب جديد حتى معالجة هذا الطلب.")
 
+# نهاية ملف products.py
