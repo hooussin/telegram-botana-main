@@ -2,14 +2,7 @@
 
 import logging
 from telebot import types
-from services.wallet_service import (
-    register_user_if_not_exist,
-    get_balance,
-    get_all_products,
-    get_product_by_id,
-    add_purchase,
-    deduct_balance
-)
+from services.wallet_service import register_user_if_not_exist, get_balance, add_purchase, deduct_balance
 from config import BOT_NAME
 from handlers import keyboards
 from database.models.product import Product
@@ -67,15 +60,6 @@ def convert_price_usd_to_syp(usd):
         return int(usd * 11300)
     return int(usd * 11000)
 
-# ============= إضافة سجل شراء جديد في Supabase =============
-def add_purchase_ws(user_id, product_name, price, player_id):
-    client.table("purchases").insert({
-        "user_id": user_id,
-        "product_name": product_name,
-        "price": price,
-        "player_id": player_id
-    }).execute()
-
 # ============= عرض قوائم المنتجات والتصنيفات =============
 def show_products_menu(bot, message):
     bot.send_message(message.chat.id, "📍 اختر نوع المنتج:", reply_markup=keyboards.products_menu())
@@ -107,7 +91,6 @@ def handle_player_id(message, bot):
         return
     order["player_id"] = player_id
 
-    # اطلب تأكيد الآيدي قبل الإرسال للإدارة
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     keyboard.add(
         types.InlineKeyboardButton("✏️ تعديل", callback_data="edit_player_id"),
@@ -177,7 +160,15 @@ def setup_inline_handlers(bot, admin_ids):
             )
             return
         product_id = int(call.data.replace("select_", ""))
-        selected = get_product_by_id(product_id)
+        # إيجاد المنتج من الذاكرة
+        selected = None
+        for items in PRODUCTS.values():
+            for p in items:
+                if p.product_id == product_id:
+                    selected = p
+                    break
+            if selected:
+                break
         if not selected:
             bot.answer_callback_query(call.id, "❌ المنتج غير موجود.")
             return
@@ -219,7 +210,7 @@ def setup_inline_handlers(bot, admin_ids):
     @bot.callback_query_handler(func=lambda c: c.data == "confirm_player_id")
     def confirm_player_id(call):
         user_id = call.from_user.id
-        order = user_orders.get(user_id)
+        order = user_orders.get(user_id, {})
         product = order.get("product")
         player_id = order.get("player_id")
         price_syp = convert_price_usd_to_syp(product.price)
@@ -252,7 +243,7 @@ def setup_inline_handlers(bot, admin_ids):
     @bot.callback_query_handler(func=lambda c: c.data == "final_confirm_order")
     def final_confirm_order(call):
         user_id = call.from_user.id
-        order = user_orders.get(user_id)
+        order = user_orders.get(user_id, {})
         product = order.get("product")
         player_id = order.get("player_id")
         price_syp = convert_price_usd_to_syp(product.price)
@@ -270,9 +261,9 @@ def setup_inline_handlers(bot, admin_ids):
             f"🎮 آيدي اللاعب: {player_id}\n"
             f"💵 السعر: {price_syp:,} ل.س"
         )
-        add_pending_request(
-            user_id=user_id,
-            username=call.from_user.username,
-            request_text=admin_msg
-        )
+        add_pending_request(user_id=user_id,
+                            username=call.from_user.username,
+                            request_text=admin_msg)
         process_queue(bot)
+
+# نهاية الملف
