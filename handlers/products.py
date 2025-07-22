@@ -91,6 +91,7 @@ def clear_user_order(user_id):
     pending_orders.discard(user_id)
 
 # ============= تسجيل المستخدم =============
+
 def register(bot, history):
     @bot.message_handler(func=lambda msg: msg.text in ["🛒 المنتجات", "💼 المنتجات"])
     def handle_main_product_menu(msg):
@@ -100,9 +101,7 @@ def register(bot, history):
         if user_id in pending_orders:
             bot.send_message(msg.chat.id, "⚠️ لديك طلب قيد الانتظار.")
             return
-        if not isinstance(history.get(user_id), list):
-           history[user_id] = []
-        history[user_id].append("products_menu")
+        history.setdefault(user_id, []).append("products_menu")
         show_products_menu(bot, msg)
 
     @bot.message_handler(func=lambda msg: msg.text == "🎮 شحن ألعاب و تطبيقات")
@@ -131,6 +130,41 @@ def register(bot, history):
         history.setdefault(user_id, []).append("product_options")
         user_orders[user_id] = {"category": category}
         show_product_options(bot, msg, category)
+
+    @bot.callback_query_handler(func=lambda call: call.data == "final_confirm_order")
+    def final_confirm_order(call):
+        user_id = call.from_user.id
+        if user_id in pending_orders:
+            bot.send_message(user_id, "⚠️ لديك طلب قيد الانتظار.")
+            return
+        order = user_orders.get(user_id)
+        if not order:
+            bot.send_message(user_id, "❌ لم يتم العثور على طلب.")
+            return
+        product = order["product"]
+        player_id = order["player_id"]
+        price_syp = convert_price_usd_to_syp(product.price)
+
+        pending_orders.add(user_id)
+
+        # رسالة للعميل: دخول الطابور
+        bot.send_message(
+            user_id,
+            "✅ طلبك أُضيف إلى قائمة الانتظار، وسيصلك إشعار عند دور المعالجة."
+        )
+
+        # تسجيل الطلب في قاعدة البيانات فقط
+        admin_msg = (
+            f"🆕 طلب جديد من @{call.from_user.username or ''} (ID: {user_id}):\n"
+            f"🔖 منتج: {product.name}\n"
+            f"🎮 آيدي اللاعب: {player_id}\n"
+            f"💵 السعر: {price_syp:,} ل.س"
+        )
+        add_pending_request(
+            user_id=user_id,
+            username=call.from_user.username,
+            request_text=admin_msg
+        )
 
 # ============= الهاندلر الرئيسي للأزرار المضمنة =============
 def setup_inline_handlers(bot, admin_ids):
