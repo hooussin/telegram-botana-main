@@ -19,6 +19,8 @@ def process_queue(bot):
     خدمة الطابور: ترسل للأدمن طلبًا واحدًا فقط في كل مرة مع أزرار للموافقة أو الرفض،
     ثم تنتظر دقيقتين قبل الطلب التالي.
     """
+    from telebot import types
+
     while True:
         # 1) جلب أقدم طلب بالحالة pending
         response = (
@@ -41,7 +43,6 @@ def process_queue(bot):
         user_id = req["user_id"]
 
         # 2) تجهيز الزرّين للموافقة أو الرفض
-        from telebot import types
         admin_keyboard = types.InlineKeyboardMarkup(row_width=2)
         admin_keyboard.add(
             types.InlineKeyboardButton(
@@ -61,11 +62,7 @@ def process_queue(bot):
         )
         bot.send_message(ADMIN_MAIN_ID, msg, reply_markup=admin_keyboard)
 
-        # 4) حدّث الحالة إلى processing ليمنع الإرسال المزدوج
-        get_table("pending_requests") \
-            .update({"status": "processing"}) \
-            .eq("id", request_id) \
-            .execute()
+        # 4) لا نغيّر الحالة هنا؛ يبقى pending حتى يضغط الأدمن
 
         # 5) انتظر دقيقتين قبل الطلب التالي
         time.sleep(120)
