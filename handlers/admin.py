@@ -98,25 +98,25 @@ def register(bot, history):
             )
             queue_cooldown_start(bot)
 
-    elif action == "cancel":
-        delete_pending_request(request_id)
-        bot.answer_callback_query(call.id, "🚫 تم إلغاء الطلب.")
-        queue_cooldown_start(bot)
+        elif action == "cancel":
+            delete_pending_request(request_id)
+            bot.answer_callback_query(call.id, "🚫 تم إلغاء الطلب.")
+            queue_cooldown_start(bot)
 
-    elif action == "accept":
-        typ = payload.get("type")
-        if typ in ("syr_unit", "mtn_unit"):
-            price = payload.get("price", 0)
-            num = payload.get("number")
-            name = payload.get("unit_name")
-            deduct_balance(user_id, price)
-            add_purchase(user_id, price, name, price, num)
-            bot.send_message(
-                user_id,
-                f"✅ تم تحويل {name} بنجاح إلى {num}.
-تم خصم {price:,} ل.س من محفظتك.",
-                parse_mode="HTML"
-            )
+        elif action == "accept":
+            typ = payload.get("type")
+            if typ in ("syr_unit", "mtn_unit"):
+                price = payload.get("price", 0)
+                num = payload.get("number")
+                name = payload.get("unit_name")
+                deduct_balance(user_id, price)
+                add_purchase(user_id, price, name, price, num)
+                bot.send_message(
+                    user_id,
+                    f"✅ تم تحويل {name} بنجاح إلى {num}.
+    تم خصم {price:,} ل.س من محفظتك.",
+                    parse_mode="HTML"
+                )
         elif typ in ("syr_bill", "mtn_bill"):
             total = payload.get("total", 0)
             num = payload.get("number")
