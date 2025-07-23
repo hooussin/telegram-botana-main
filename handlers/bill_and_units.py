@@ -292,34 +292,34 @@ def register_bill_and_units(bot, history):
         )
 
     @bot.callback_query_handler(func=lambda call: call.data == "syr_unit_final_confirm")
-def syr_unit_final_confirm(call):
-    user_id = call.from_user.id
-    state = user_states[user_id]
-    state["step"] = "wait_admin_syr_unit"
-    summary = (
-        f"🔴 طلب وحدات سيرياتيل:
-"
-        f"👤 المستخدم: {user_id}
-"
-        f"📱 الرقم/الكود: {state['number']}
-"
-        f"💵 الكمية: {state['unit']['name']}
-"
-        f"💰 السعر: {state['unit']['price']:,} ل.س"
-    )
-    add_pending_request(
-        user_id=user_id,
-        username=call.from_user.username,
-        request_text=summary,
-        payload={
-            "type": "syr_unit",
-            "number": state["number"],
-            "unit_name": state["unit"]["name"],
-            "price": state["unit"]["price"]
-        }
-    )
-    process_queue(bot)
-    bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
+    def syr_unit_final_confirm(call):
+        user_id = call.from_user.id
+        state = user_states[user_id]
+        state["step"] = "wait_admin_syr_unit"
+        summary = (
+            f"🔴 طلب وحدات سيرياتيل:
+    "
+            f"👤 المستخدم: {user_id}
+    "
+            f"📱 الرقم/الكود: {state['number']}
+    "
+            f"💵 الكمية: {state['unit']['name']}
+    "
+            f"💰 السعر: {state['unit']['price']:,} ل.س"
+        )
+        add_pending_request(
+            user_id=user_id,
+            username=call.from_user.username,
+            request_text=summary,
+            payload={
+                "type": "syr_unit",
+                "number": state["number"],
+                "unit_name": state["unit"]["name"],
+                "price": state["unit"]["price"]
+            }
+        )
+        process_queue(bot)
+        bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
     @bot.callback_query_handler(func=lambda call: call.data == "cancel_all")
     def cancel_all(call):
