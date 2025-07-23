@@ -367,7 +367,7 @@ def register_bill_and_units(bot, history):
 
         pending_users.discard(uid)
         _update_balance(uid, -price)
-        add_purchase(uid, price, unit_name, price, number)
+        add_purchase(uid, 0, unit_name, price, number)
         bot.send_message(
             uid,
             f"✅ تم تحويل {unit_name} إلى الرقم <code>{number}</code>\n"
@@ -495,7 +495,7 @@ def register_bill_and_units(bot, history):
 
         pending_users.discard(uid)
         _update_balance(uid, -price)
-        add_purchase(uid, price, unit_name, price, number)
+        add_purchase(uid, 0, unit_name, price, number)
         bot.send_message(
             uid,
             f"✅ تم تحويل {unit_name} إلى الرقم <code>{number}</code>\n"
