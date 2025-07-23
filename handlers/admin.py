@@ -113,7 +113,7 @@ def register(bot, history):
                 add_purchase(user_id, price, name, price, num)
                 bot.send_message(
                     user_id,
-                    f"✅ تم تحويل {name} بنجاح إلى {num}.
+                f"✅ تم تحويل {name} بنجاح إلى {num}.
     تم خصم {price:,} ل.س من محفظتك.",
                     parse_mode="HTML"
                 )
