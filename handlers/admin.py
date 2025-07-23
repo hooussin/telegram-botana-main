@@ -1,3 +1,4 @@
+from services.queue_service import add_pending_request, process_queue, delete_pending_request
 import logging
 import json
 import os
@@ -80,11 +81,11 @@ def register(bot, history):
             .select("user_id", "request_text", "payload") \
             .eq("id", request_id) \
             .execute()
-        if not res.data:
+        if not getattr(res, 'data', None):
             return bot.answer_callback_query(call.id, "❌ الطلب غير موجود.")
         req = res.data[0]
         user_id = req["user_id"]
-        payload = req.get("payload", {})
+        payload = req.get("payload") or {}
 
         # Remove admin message
         bot.delete_message(call.message.chat.id, call.message.message_id)
@@ -92,10 +93,7 @@ def register(bot, history):
         if action == "postpone":
             postpone_request(request_id)
             bot.answer_callback_query(call.id, "✅ تم تأجيل الطلب.")
-            bot.send_message(
-                user_id,
-                "⏳ نعتذر عن التأخير؛ طلبك أعيد إلى نهاية القائمة."
-            )
+            bot.send_message(user_id, "⏳ نعتذر؛ طلبك أعيد إلى نهاية القائمة.")
             queue_cooldown_start(bot)
 
         elif action == "cancel":
@@ -111,30 +109,22 @@ def register(bot, history):
                 name = payload.get("unit_name")
                 deduct_balance(user_id, price)
                 add_purchase(user_id, price, name, price, num)
-                bot.send_message(
-                    user_id,
-                    f"✅ تم تحويل {name} بنجاح إلى {num}.\nتم خصم {price:,} ل.س من محفظتك.",
-                    parse_mode="HTML"
-                )
+                bot.send_message(user_id, f"✅ تم تحويل {name} بنجاح إلى {num}.\nتم خصم {price:,} ل.س.", parse_mode="HTML")
             elif typ in ("syr_bill", "mtn_bill"):
                 total = payload.get("total", 0)
                 num = payload.get("number")
-                label = "فاتورة سيرياتيل" if typ == "syr_bill" else "فاتورة MTN"
+                label = "فاتورة سيرياتيل" if typ=="syr_bill" else "فاتورة MTN"
                 deduct_balance(user_id, total)
                 add_purchase(user_id, total, label, total, num)
-                bot.send_message(
-                    user_id,
-                    f"✅ تم دفع {label} للرقم {num}.\nتم خصم {total:,} ل.س من محفظتك.",
-                    parse_mode="HTML"
-                )
+                bot.send_message(user_id, f"✅ تم دفع {label} للرقم {num}.\nتم خصم {total:,} ل.س.", parse_mode="HTML")
             delete_pending_request(request_id)
             bot.answer_callback_query(call.id, "✅ تم تنفيذ العملية")
             queue_cooldown_start(bot)
 
         else:
-            bot.answer_callback_query(call.id, "❌ حدث خطأ غير متوقع.")
+            bot.answer_callback_query(call.id, "❌ حدث خطأ.")
 
-        # إضافات أخرى على الإجراءات (ربما كود مكرر)
+        # الإجرائات الإضافية لو تكررت الأكشنات، احفظها ضمن else لو لزم الأمر
         if action == "cancel":
             bot.answer_callback_query(call.id, "🚫 يرجى كتابة سبب الإلغاء أو إرسال صورة (سيتم إرساله للعميل):")
             _cancel_pending[call.from_user.id] = {"request_id": request_id, "user_id": user_id}
