@@ -810,4 +810,5 @@ def register_bill_and_units(bot, history):
         bot.send_message(uid, "❌ تم رفض طلب دفع الفاتورة من الإدارة.")
         bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
         user_states.pop(uid, None)
-
+def register(bot):
+    register_bill_and_units(bot, {})
