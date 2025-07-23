@@ -338,18 +338,18 @@ def register_bill_and_units(bot, history):
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
     # ------ موافقة/رفض الإدارة (يجب أن تكون بمستوى 4 مسافات، خارج الدالة السابقة) ------
-    
+     # سطور الطباعة المهمة!
+    print("==== DEBUG admin_accept_syr_unit ====")
+    print("user_states[uid]:", st)
+    print("unit_name:", repr(unit_name))
+    print("SYRIATEL_UNITS:", [u["name"] for u in SYRIATEL_UNITS])
     @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_accept_syr_unit_"))
     def admin_accept_syr_unit(call):
         uid = int(call.data.split("_")[-1])
         st = user_states.get(uid, {})
         number = st.get("number", "")
         unit_name = st.get("unit", {}).get("name", "")
-        # سطور الطباعة المهمة!
-        print("==== DEBUG admin_accept_syr_unit ====")
-        print("user_states[uid]:", st)
-        print("unit_name:", repr(unit_name))
-        print("SYRIATEL_UNITS:", [u["name"] for u in SYRIATEL_UNITS])
+       
         # احصل على السعر من القائمة الأصلية
         price = next((u["price"] for u in SYRIATEL_UNITS if u["name"] == unit_name), 0)
 
