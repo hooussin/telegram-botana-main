@@ -271,10 +271,14 @@ def register_bill_and_units(bot, history):
     @bot.message_handler(func=lambda m: user_states.get(m.from_user.id, {}).get("step") == "select_syr_unit")
     def syr_unit_select(msg):
         uid = msg.from_user.id
-        unit = next((u for u in SYRIATEL_UNITS if _unit_label(u) == msg.text), None)
-        if not unit:
-            return bot.send_message(msg.chat.id, "⚠️ اختر كمية من القائمة.")
-        user_states[uid] = {"step": "syr_unit_number", "unit": unit}
+        for idx, u in enumerate(SYRIATEL_UNITS):
+        if _unit_label(u) == msg.text:
+            unit = u
+            user_states[uid] = {"step": "syr_unit_number", "unit": unit, "unit_idx": idx}
+            break
+    else:
+        return bot.send_message(msg.chat.id, "⚠️ اختر كمية من القائمة.")
+
         kb = make_inline_buttons(("❌ إلغاء", "cancel_all"))
         bot.send_message(msg.chat.id, "📱 أدخل الرقم الذي يبدأ بـ 09 ومؤلف من 10 أرقام:", reply_markup=kb)
 
@@ -394,10 +398,14 @@ def register_bill_and_units(bot, history):
     @bot.message_handler(func=lambda m: user_states.get(m.from_user.id, {}).get("step") == "select_mtn_unit")
     def mtn_unit_select(msg):
         uid = msg.from_user.id
-        unit = next((u for u in MTN_UNITS if _unit_label(u) == msg.text), None)
-        if not unit:
-            return bot.send_message(msg.chat.id, "⚠️ اختر كمية من القائمة.")
-        user_states[uid] = {"step": "mtn_unit_number", "unit": unit}
+        for idx, u in enumerate(MTN_UNITS):
+        if _unit_label(u) == msg.text:
+            unit = u
+            user_states[uid] = {"step": "mtn_unit_number", "unit": unit, "unit_idx": idx}
+            break
+    else:
+        return bot.send_message(msg.chat.id, "⚠️ اختر كمية من القائمة.")
+
         kb = make_inline_buttons(("❌ إلغاء", "cancel_all"))
         bot.send_message(msg.chat.id, "📱 أدخل الرقم الذي يبدأ بـ 09 ومؤلف من 10 أرقام:", reply_markup=kb)
 
