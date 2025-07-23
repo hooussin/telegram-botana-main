@@ -317,7 +317,6 @@ def register_bill_and_units(bot, history):
         process_queue(bot)
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
-    @bot.callback_query_handler(func=lambda call: call.data == "cancel_all")
     def cancel_all(call):
         user_states.pop(call.from_user.id, None)
         bot.edit_message_text("❌ تم إلغاء العملية.", call.message.chat.id, call.message.message_id)
@@ -417,8 +416,6 @@ def register_bill_and_units(bot, history):
         process_queue(bot)
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
-
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_mtn_unit_"))
     def admin_accept_mtn_unit(call):
         user_id = int(call.data.split("_")[-1])
         state = user_states.get(user_id, {})
@@ -514,7 +511,7 @@ def register_bill_and_units(bot, history):
     def confirm_syr_bill_amount(call):
         user_id = call.from_user.id
         amount = user_states[user_id]["amount"]
-        amount_with_fee = int(amount * 1.17)
+        amount_with_fee = int(amount * 1.10)
         user_states[user_id]["amount_with_fee"] = amount_with_fee
         user_states[user_id]["step"] = "syr_bill_final_confirm"
         kb = make_inline_buttons(
@@ -573,7 +570,6 @@ def register_bill_and_units(bot, history):
         process_queue(bot)
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_bill_"))
     def admin_accept_syr_bill(call):
         user_id = int(call.data.split("_")[-2])
         total = int(call.data.split("_")[-1])
@@ -718,8 +714,6 @@ def register_bill_and_units(bot, history):
         process_queue(bot)
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
-
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_mtn_bill_"))
     def admin_accept_mtn_bill(call):
         user_id = int(call.data.split("_")[-2])
         total = int(call.data.split("_")[-1])
