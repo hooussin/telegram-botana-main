@@ -11,6 +11,7 @@ from services.wallet_service import (
 )
 from config import ADMIN_MAIN_ID
 from services.queue_service import add_pending_request, process_queue, delete_pending_request
+from services.supabase_service import get_table  # لجلب الطلبات من DB
 
 # --- قوائم المنتجات (وحدات) وأسعارها (لم يتم تعديل القيم) ---
 SYRIATEL_UNITS = [
@@ -295,6 +296,17 @@ def register_bill_and_units(bot, history):
     def syr_unit_final_confirm(call):
         user_id = call.from_user.id
         state = user_states[user_id]
+        # منع الطلبات المتزامنة
+        existing = get_table("pending_requests")\
+            .select("id")\
+            .eq("user_id", user_id)\
+            .execute()
+        if existing.data:
+            return bot.send_message(
+                call.message.chat.id,
+                "❌ لديك طلب قيد الانتظار، الرجاء الانتظار حتى تتم معالجته."
+            )
+
         state["step"] = "wait_admin_syr_unit"
         summary = (
             f"🔴 طلب وحدات سيرياتيل:\n"
@@ -320,35 +332,6 @@ def register_bill_and_units(bot, history):
     def cancel_all(call):
         user_states.pop(call.from_user.id, None)
         bot.edit_message_text("❌ تم إلغاء العملية.", call.message.chat.id, call.message.message_id)
-
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_unit_"))
-    def admin_accept_syr_unit(call):
-        user_id = int(call.data.split("_")[-1])
-        state = user_states.get(user_id, {})
-        price = state.get("unit", {}).get("price", 0)
-        balance = get_balance(user_id)
-        if balance < price:
-            kb = make_inline_buttons(
-                ("❌ إلغاء", "cancel_all"),
-                ("💼 الذهاب للمحفظة", "go_wallet")
-            )
-            bot.send_message(user_id,
-                f"❌ لا يوجد رصيد كافٍ في محفظتك.\nرصيدك: {balance:,} ل.س\nالمطلوب: {price:,} ل.س\n"
-                f"الناقص: {price - balance:,} ل.س", reply_markup=kb)
-            bot.answer_callback_query(call.id, "❌ رصيد غير كافٍ")
-            user_states.pop(user_id, None)
-            return
-        deduct_balance(user_id, price)
-        bot.send_message(user_id, f"✅ تم شراء {state['unit']['name']} لوحدات سيرياتيل بنجاح.")
-        bot.answer_callback_query(call.id, "✅ تم تنفيذ العملية")
-        user_states.pop(user_id, None)
-
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_syr_unit_"))
-    def admin_reject_syr_unit(call):
-        user_id = int(call.data.split("_")[-1])
-        bot.send_message(user_id, "❌ تم رفض طلب وحدات سيرياتيل من الإدارة.")
-        bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
-        user_states.pop(user_id, None)
 
     ########## وحدات MTN ##########
     @bot.message_handler(func=lambda msg: msg.text == "🟡 وحدات MTN")
@@ -394,6 +377,17 @@ def register_bill_and_units(bot, history):
     def mtn_unit_final_confirm(call):
         user_id = call.from_user.id
         state = user_states[user_id]
+        # منع الطلبات المتزامنة
+        existing = get_table("pending_requests")\
+            .select("id")\
+            .eq("user_id", user_id)\
+            .execute()
+        if existing.data:
+            return bot.send_message(
+                call.message.chat.id,
+                "❌ لديك طلب قيد الانتظار، الرجاء الانتظار حتى تتم معالجته."
+            )
+
         state["step"] = "wait_admin_mtn_unit"
         summary = (
             f"🟡 طلب وحدات MTN:\n"
@@ -438,13 +432,7 @@ def register_bill_and_units(bot, history):
         bot.answer_callback_query(call.id, "✅ تم تنفيذ العملية")
         user_states.pop(user_id, None)
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_mtn_unit_"))
-    def admin_reject_mtn_unit(call):
-        user_id = int(call.data.split("_")[-1])
-        bot.send_message(user_id, "❌ تم رفض طلب وحدات MTN من الإدارة.")
-        bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
-        user_states.pop(user_id, None)
-
+    
     ########## فاتورة سيرياتيل ##########
     @bot.message_handler(func=lambda msg: msg.text == "🔴 فاتورة سيرياتيل")
     def syr_bill_entry(msg):
@@ -531,6 +519,17 @@ def register_bill_and_units(bot, history):
     @bot.callback_query_handler(func=lambda call: call.data == "final_confirm_syr_bill")
     def final_confirm_syr_bill(call):
         user_id = call.from_user.id
+        # منع الطلبات المتزامنة
+        existing = get_table("pending_requests")\
+            .select("id")\
+            .eq("user_id", user_id)\
+            .execute()
+        if existing.data:
+            return bot.send_message(
+                call.message.chat.id,
+                "❌ لديك طلب قيد الانتظار، الرجاء الانتظار حتى تتم معالجته."
+            )
+
         total = user_states[user_id]["amount_with_fee"]
         balance = get_balance(user_id)
         if balance < total:
@@ -580,13 +579,6 @@ def register_bill_and_units(bot, history):
         deduct_balance(user_id, total)
         bot.send_message(user_id, f"✅ تم دفع فاتورة سيرياتيل بنجاح.\nالمبلغ المقتطع: {total:,} ل.س")
         bot.answer_callback_query(call.id, "✅ تم تنفيذ الدفع")
-        user_states.pop(user_id, None)
-
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_syr_bill_"))
-    def admin_reject_syr_bill(call):
-        user_id = int(call.data.split("_")[-1])
-        bot.send_message(user_id, "❌ تم رفض طلب دفع الفاتورة من الإدارة.")
-        bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
         user_states.pop(user_id, None)
 
     ########## فاتورة MTN ##########
@@ -675,6 +667,16 @@ def register_bill_and_units(bot, history):
     @bot.callback_query_handler(func=lambda call: call.data == "final_confirm_mtn_bill")
     def final_confirm_mtn_bill(call):
         user_id = call.from_user.id
+        # — منع الطلبات المتزامنة إذا كان هناك طلب قيد الانتظار —
+        existing = get_table("pending_requests")\
+            .select("id")\
+            .eq("user_id", user_id)\
+            .execute()
+        if existing.data:
+            return bot.send_message(
+                call.message.chat.id,
+                "❌ لديك طلب قيد الانتظار، الرجاء الانتظار حتى تتم معالجته."
+            )
         total = user_states[user_id]["amount_with_fee"]
         balance = get_balance(user_id)
         if balance < total:
@@ -726,12 +728,6 @@ def register_bill_and_units(bot, history):
         bot.answer_callback_query(call.id, "✅ تم تنفيذ الدفع")
         user_states.pop(user_id, None)
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_reject_mtn_bill_"))
-    def admin_reject_mtn_bill(call):
-        user_id = int(call.data.split("_")[-1])
-        bot.send_message(user_id, "❌ تم رفض طلب دفع الفاتورة من الإدارة.")
-        bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
-        user_states.pop(user_id, None)
 
     # زر الذهاب للمحفظة في حال الرصيد غير كافٍ
     @bot.callback_query_handler(func=lambda call: call.data == "go_wallet")
