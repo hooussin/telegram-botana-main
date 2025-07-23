@@ -11,7 +11,7 @@ from services.wallet_service import (
 )
 from config import ADMIN_MAIN_ID
 from services.queue_service import add_pending_request, process_queue, delete_pending_request
-from services.supabase_service import get_table  # لجلب الطلبات من DB
+
 
 # --- قوائم المنتجات (وحدات) وأسعارها (لم يتم تعديل القيم) ---
 SYRIATEL_UNITS = [
