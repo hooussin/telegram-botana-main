@@ -367,7 +367,7 @@ def register_bill_and_units(bot, history):
 
         pending_users.discard(uid)
         _update_balance(uid, -price)
-        print(f"[DEBUG] السعر: {price} | اسم الوحدة: {unit_name} | index: {unit_idx}")
+        logging.warning(f"[DEBUG] السعر: {price} | اسم الوحدة: {unit_name} | index: {unit_idx}")
         add_purchase(uid, 0, unit_name, price, number)
         bot.send_message(
             uid,
