@@ -194,11 +194,6 @@ def register_bill_and_units(bot, history):
 
     # ------ ملاحق كولباك للوحدات (سيرياتيل) ------
 
-    logging.warning("==== DEBUG admin_accept_syr_unit ====")
-    logging.warning("user_states[uid]: %s", st)
-    logging.warning("unit_name: %s", repr(unit_name))
-    logging.warning("SYRIATEL_UNITS: %s", [u["name"] for u in SYRIATEL_UNITS])
-
     @bot.callback_query_handler(func=lambda call: call.data.startswith("syrunits:"))
     def syr_units_inline_handler(call):
         parts = call.data.split(":")
@@ -262,10 +257,7 @@ def register_bill_and_units(bot, history):
     # أدناه الكود الأصلي للمعالجة بالرسائل (ReplyKeyboard) بدون أي تعديل
     # ===================================================================
           ########## وحدات سيرياتيل ##########
-    logging.warning("==== DEBUG admin_accept_syr_unit ====")
-    logging.warning("user_states[uid]: %s", st)
-    logging.warning("unit_name: %s", repr(unit_name))
-    logging.warning("SYRIATEL_UNITS: %s", [u["name"] for u in SYRIATEL_UNITS])
+   
     @bot.message_handler(func=lambda m: m.text == "🔴 وحدات سيرياتيل")
     def syr_units_menu(msg):
         uid = msg.from_user.id
@@ -348,18 +340,17 @@ def register_bill_and_units(bot, history):
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
     # ------ موافقة/رفض الإدارة (يجب أن تكون بمستوى 4 مسافات، خارج الدالة السابقة) ------
-     # سطور الطباعة المهمة!
-    logging.warning("==== DEBUG admin_accept_syr_unit ====")
-    logging.warning("user_states[uid]: %s", st)
-    logging.warning("unit_name: %s", repr(unit_name))
-    logging.warning("SYRIATEL_UNITS: %s", [u["name"] for u in SYRIATEL_UNITS])
+    
     @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_accept_syr_unit_"))
     def admin_accept_syr_unit(call):
         uid = int(call.data.split("_")[-1])
         st = user_states.get(uid, {})
         number = st.get("number", "")
         unit_name = st.get("unit", {}).get("name", "")
-       
+        logging.warning("==== DEBUG admin_accept_syr_unit ====")
+        logging.warning("user_states[uid]: %s", st)
+        logging.warning("unit_name: %s", repr(unit_name))
+        logging.warning("SYRIATEL_UNITS: %s", [u["name"] for u in SYRIATEL_UNITS])
         # احصل على السعر من القائمة الأصلية
         price = next((u["price"] for u in SYRIATEL_UNITS if u["name"] == unit_name), 0)
 
