@@ -360,6 +360,7 @@ def register_bill_and_units(bot, history):
             return bot.answer_callback_query(call.id, "❌")
 
         # 🟢 خصم الرصيد والتسجيل في حركة الشراء في خطوة واحدة
+        pending_users.popleft()
         deduct_balance(uid, price)
         add_purchase(uid, price, st["unit"]["name"], price, number)
 
@@ -375,7 +376,7 @@ def register_bill_and_units(bot, history):
     @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_reject_syr_unit_"))
     def admin_reject_syr_unit(call):
         uid = int(call.data.split("_")[-1])
-        pending_users.remove(uid)
+        pending_users.popleft()
         bot.send_message(uid, "❌ تم رفض طلب وحدات سيرياتيل من الإدارة.")
         bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
         user_states.pop(uid, None)
@@ -488,7 +489,7 @@ def register_bill_and_units(bot, history):
             bot.send_message(uid, f"❌ رصيدك {bal:,} ل.س والمطلوب {price:,} ل.س.")
             return bot.answer_callback_query(call.id, "❌")
 
-        pending_users.remove(uid)
+        pending_users.popleft()
         deduct_balance(uid, price)
         print(f"[DEBUG] السعر: {price} | اسم الوحدة: {unit_name} | index: {unit_idx}")
         add_purchase(uid, price, unit_name, price, number)
@@ -504,7 +505,7 @@ def register_bill_and_units(bot, history):
     @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_reject_mtn_unit_"))
     def admin_reject_mtn_unit(call):
         uid = int(call.data.split("_")[-1])
-        pending_users.remove(uid)
+        pending_users.popleft()
         bot.send_message(uid, "❌ تم رفض طلب وحدات MTN من الإدارة.")
         bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
         user_states.pop(uid, None)
@@ -653,7 +654,7 @@ def register_bill_and_units(bot, history):
             bot.send_message(uid, f"❌ رصيدك {bal:,} ل.س والمطلوب {total:,} ل.س.")
             return bot.answer_callback_query(call.id, "❌")
 
-        pending_users.remove(uid)
+        pending_users.popleft()
         deduct_balance(uid, total)
         add_purchase(uid, total, "فاتورة سيرياتيل", total, number)
         bot.send_message(
@@ -668,7 +669,7 @@ def register_bill_and_units(bot, history):
     @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_reject_syr_bill_"))
     def admin_reject_syr_bill(call):
         uid = int(call.data.split("_")[-1])
-        pending_users.remove(uid)
+        pending_users.popleft()
         bot.send_message(uid, "❌ تم رفض طلب دفع الفاتورة من الإدارة.")
         bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
         user_states.pop(uid, None)
@@ -815,7 +816,7 @@ def register_bill_and_units(bot, history):
             bot.send_message(uid, f"❌ رصيدك {bal:,} ل.س والمطلوب {total:,} ل.س.")
             return bot.answer_callback_query(call.id, "❌")
 
-        pending_users.remove(uid)
+        pending_users.popleft()
         deduct_balance(uid, total)
         add_purchase(uid, total, "فاتورة MTN", total, number)
         bot.send_message(
@@ -830,7 +831,7 @@ def register_bill_and_units(bot, history):
     @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_reject_mtn_bill_"))
     def admin_reject_mtn_bill(call):
         uid = int(call.data.split("_")[-1])
-        pending_users.remove(uid)
+        pending_users.popleft()
         bot.send_message(uid, "❌ تم رفض طلب دفع الفاتورة من الإدارة.")
         bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
         user_states.pop(uid, None)
