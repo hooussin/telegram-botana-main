@@ -113,30 +113,29 @@ def register(bot, history):
                 add_purchase(user_id, price, name, price, num)
                 bot.send_message(
                     user_id,
-                f"✅ تم تحويل {name} بنجاح إلى {num}.
-    تم خصم {price:,} ل.س من محفظتك.",
+                    f"✅ تم تحويل {name} بنجاح إلى {num}.\nتم خصم {price:,} ل.س من محفظتك.",
                     parse_mode="HTML"
                 )
-        elif typ in ("syr_bill", "mtn_bill"):
-            total = payload.get("total", 0)
-            num = payload.get("number")
-            label = "فاتورة سيرياتيل" if typ == "syr_bill" else "فاتورة MTN"
-            deduct_balance(user_id, total)
-            add_purchase(user_id, total, label, total, num)
-            bot.send_message(
-                user_id,
-                f"✅ تم دفع {label} للرقم {num}.
-تم خصم {total:,} ل.س من محفظتك.",
-                parse_mode="HTML"
-            )
-        delete_pending_request(request_id)
-        bot.answer_callback_query(call.id, "✅ تم تنفيذ العملية")
-        queue_cooldown_start(bot)
+            elif typ in ("syr_bill", "mtn_bill"):
+                total = payload.get("total", 0)
+                num = payload.get("number")
+                label = "فاتورة سيرياتيل" if typ == "syr_bill" else "فاتورة MTN"
+                deduct_balance(user_id, total)
+                add_purchase(user_id, total, label, total, num)
+                bot.send_message(
+                    user_id,
+                    f"✅ تم دفع {label} للرقم {num}.\nتم خصم {total:,} ل.س من محفظتك.",
+                    parse_mode="HTML"
+                )
+            delete_pending_request(request_id)
+            bot.answer_callback_query(call.id, "✅ تم تنفيذ العملية")
+            queue_cooldown_start(bot)
 
-    else:
-        bot.answer_callback_query(call.id, "❌ حدث خطأ غير متوقع.")
+        else:
+            bot.answer_callback_query(call.id, "❌ حدث خطأ غير متوقع.")
 
-        elif action == "cancel":
+        # إضافات أخرى على الإجراءات (ربما كود مكرر)
+        if action == "cancel":
             bot.answer_callback_query(call.id, "🚫 يرجى كتابة سبب الإلغاء أو إرسال صورة (سيتم إرساله للعميل):")
             _cancel_pending[call.from_user.id] = {"request_id": request_id, "user_id": user_id}
             bot.send_message(call.message.chat.id, "✏️ أرسل سبب الإلغاء كتابياً أو أرسل صورة للعميل:")
@@ -147,6 +146,7 @@ def register(bot, history):
 
         elif action == "accept":
             # استخراج السعر والمنتج وplayer_id من نص الطلب
+            text = req.get("request_text", "")
             m_price = re.search(r"💵 السعر: ([\d,]+) ل\.س", text)
             price = int(m_price.group(1).replace(",", "")) if m_price else 0
             m_prod = re.search(r"🔖 المنتج: (.+)", text)
