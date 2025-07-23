@@ -2,6 +2,7 @@ from telebot import types
 import math  # added for pagination support
 import logging
 import re  # for phone validation
+from collections import deque
 
 from services.wallet_service import (
     get_balance,
@@ -42,7 +43,7 @@ MTN_UNITS = [
 
 user_states = {}
 
-pending_users = set()  # track users with pending requests
+pending_users = deque()  # track users with pending requests
 
 # -------------------- أدوات مساعدة عامة --------------------
 
@@ -327,7 +328,7 @@ def register_bill_and_units(bot, history):
             return
 
         # إضافة إلى الطابور
-        pending_users.add(uid)
+        pending_users.append(uid)
         st["step"] = "wait_admin_syr_unit"
         add_pending_request(
             user_id=uid,
@@ -359,7 +360,8 @@ def register_bill_and_units(bot, history):
             return bot.answer_callback_query(call.id, "❌")
 
         # 🟢 خصم الرصيد والتسجيل في حركة الشراء في خطوة واحدة
-        add_purchase(uid, 0, st["unit"]["name"], price, number)
+        deduct_balance(uid, price)
+        add_purchase(uid, price, st["unit"]["name"], price, number)
 
         bot.send_message(
             uid,
@@ -373,7 +375,7 @@ def register_bill_and_units(bot, history):
     @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_reject_syr_unit_"))
     def admin_reject_syr_unit(call):
         uid = int(call.data.split("_")[-1])
-        pending_users.discard(uid)
+        pending_users.popleft()
         bot.send_message(uid, "❌ تم رفض طلب وحدات سيرياتيل من الإدارة.")
         bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
         user_states.pop(uid, None)
@@ -448,7 +450,7 @@ def register_bill_and_units(bot, history):
             return
 
         # إضافة للطابور
-        pending_users.add(uid)
+        pending_users.append(uid)
         st["step"] = "wait_admin_mtn_unit"
         add_pending_request(
             user_id=uid,
@@ -486,10 +488,10 @@ def register_bill_and_units(bot, history):
             bot.send_message(uid, f"❌ رصيدك {bal:,} ل.س والمطلوب {price:,} ل.س.")
             return bot.answer_callback_query(call.id, "❌")
 
-        pending_users.discard(uid)
-        _update_balance(uid, -price)
+        pending_users.popleft()
+        deduct_balance(uid, price)
         print(f"[DEBUG] السعر: {price} | اسم الوحدة: {unit_name} | index: {unit_idx}")
-        add_purchase(uid, 0, unit_name, price, number)
+        add_purchase(uid, price, unit_name, price, number)
         bot.send_message(
             uid,
             f"✅ تم تحويل {unit_name} إلى الرقم <code>{number}</code>\n"
@@ -502,7 +504,7 @@ def register_bill_and_units(bot, history):
     @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_reject_mtn_unit_"))
     def admin_reject_mtn_unit(call):
         uid = int(call.data.split("_")[-1])
-        pending_users.discard(uid)
+        pending_users.popleft()
         bot.send_message(uid, "❌ تم رفض طلب وحدات MTN من الإدارة.")
         bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
         user_states.pop(uid, None)
@@ -619,7 +621,7 @@ def register_bill_and_units(bot, history):
             user_states.pop(uid, None)
             return
 
-        pending_users.add(uid)
+        pending_users.append(uid)
         st["step"] = "wait_admin_syr_bill"
         add_pending_request(
             user_id=uid,
@@ -651,9 +653,9 @@ def register_bill_and_units(bot, history):
             bot.send_message(uid, f"❌ رصيدك {bal:,} ل.س والمطلوب {total:,} ل.س.")
             return bot.answer_callback_query(call.id, "❌")
 
-        pending_users.discard(uid)
-        _update_balance(uid, -total)
-        add_purchase(uid, 0, "فاتورة سيرياتيل", total, number)
+        pending_users.popleft()
+        deduct_balance(uid, total)
+        add_purchase(uid, total, "فاتورة سيرياتيل", total, number)
         bot.send_message(
             uid,
             f"✅ تم دفع فاتورة الرقم <code>{number}</code>\n"
@@ -666,7 +668,7 @@ def register_bill_and_units(bot, history):
     @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_reject_syr_bill_"))
     def admin_reject_syr_bill(call):
         uid = int(call.data.split("_")[-1])
-        pending_users.discard(uid)
+        pending_users.popleft()
         bot.send_message(uid, "❌ تم رفض طلب دفع الفاتورة من الإدارة.")
         bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
         user_states.pop(uid, None)
@@ -781,7 +783,7 @@ def register_bill_and_units(bot, history):
             user_states.pop(uid, None)
             return
 
-        pending_users.add(uid)
+        pending_users.append(uid)
         st["step"] = "wait_admin_mtn_bill"
         add_pending_request(
             user_id=uid,
@@ -813,9 +815,9 @@ def register_bill_and_units(bot, history):
             bot.send_message(uid, f"❌ رصيدك {bal:,} ل.س والمطلوب {total:,} ل.س.")
             return bot.answer_callback_query(call.id, "❌")
 
-        pending_users.discard(uid)
-        _update_balance(uid, -total)
-        add_purchase(uid, 0, "فاتورة MTN", total, number)
+        pending_users.popleft()
+        deduct_balance(uid, total)
+        add_purchase(uid, total, "فاتورة MTN", total, number)
         bot.send_message(
             uid,
             f"✅ تم دفع فاتورة الرقم <code>{number}</code>\n"
@@ -828,7 +830,7 @@ def register_bill_and_units(bot, history):
     @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_reject_mtn_bill_"))
     def admin_reject_mtn_bill(call):
         uid = int(call.data.split("_")[-1])
-        pending_users.discard(uid)
+        pending_users.popleft()
         bot.send_message(uid, "❌ تم رفض طلب دفع الفاتورة من الإدارة.")
         bot.answer_callback_query(call.id, "❌ تم رفض الطلب")
         user_states.pop(uid, None)
