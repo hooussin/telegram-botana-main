@@ -806,3 +806,4 @@ def register_bill_and_units(bot, history):
     def go_wallet(call):
         user_states.pop(call.from_user.id, None)
         bot.send_message(call.message.chat.id, "💼 للذهاب للمحفظة، اضغط على زر المحفظة في القائمة الرئيسية.") 
+def register(bot):
