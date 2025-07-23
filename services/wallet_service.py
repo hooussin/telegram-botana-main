@@ -43,6 +43,16 @@ CREATE TABLE public.products (
   details     jsonb,
   created_at  timestamptz DEFAULT now()
 );
+-- 5) جدول الطابور pending_requests
+CREATE TABLE public.pending_requests (
+  id           int8 PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  user_id      int8,
+  username     text,
+  request_text text,
+  created_at   timestamptz DEFAULT now(),
+  status       text        DEFAULT 'pending',
+  payload      jsonb
+);
 ------------------------------------------------------------------
 """
 
