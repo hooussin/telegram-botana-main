@@ -325,8 +325,7 @@ def register_bill_and_units(bot, history):
                 "unit_name": state["unit"]["name"],
                 "price": state["unit"]["price"]
             }
-            
-        # لا داعي لنداء process_queue(bot) هنا مجدداً
+        ) 
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
 
@@ -406,7 +405,7 @@ def register_bill_and_units(bot, history):
                 "unit_name": state["unit"]["name"],
                 "price": state["unit"]["price"]
             }
-        
+        ) 
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
     def admin_accept_mtn_unit(call):
@@ -564,6 +563,7 @@ def register_bill_and_units(bot, history):
                 "total": total
             }
         
+        ) 
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
 
@@ -711,6 +711,7 @@ def register_bill_and_units(bot, history):
                 "total": total
             }
         
+        ) 
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
     def admin_accept_mtn_bill(call):
