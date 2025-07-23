@@ -352,7 +352,7 @@ def register_bill_and_units(bot, history):
 
         pending_users.discard(uid)
         _update_balance(uid, -price)
-        add_purchase(uid, f"شراء {st['unit']['name']} للرقم {number} بسعر {price:,} ل.س")
+        add_purchase(uid, 0, st['unit']['name'], price, number)
         bot.send_message(
             uid,
             f"✅ تم تحويل {st['unit']['name']} إلى الرقم <code>{number}</code>\n"
@@ -467,7 +467,7 @@ def register_bill_and_units(bot, history):
 
         pending_users.discard(uid)
         _update_balance(uid, -price)
-        add_purchase(uid, f"شراء {st['unit']['name']} للرقم {number} بسعر {price:,} ل.س")
+       add_purchase(uid, 0, st['unit']['name'], price, number)
         bot.send_message(
             uid,
             f"✅ تم تحويل {st['unit']['name']} إلى الرقم <code>{number}</code>\n"
@@ -631,7 +631,7 @@ def register_bill_and_units(bot, history):
 
         pending_users.discard(uid)
         _update_balance(uid, -total)
-        add_purchase(uid, f"دفع فاتورة سيرياتيل للرقم {number} بمبلغ {amount:,} ل.س")
+        add_purchase(uid, 0, "فاتورة سيرياتيل", total, number)
         bot.send_message(
             uid,
             f"✅ تم دفع فاتورة الرقم <code>{number}</code>\n"
@@ -793,7 +793,7 @@ def register_bill_and_units(bot, history):
 
         pending_users.discard(uid)
         _update_balance(uid, -total)
-        add_purchase(uid, f"دفع فاتورة MTN للرقم {number} بمبلغ {amount:,} ل.س")
+        add_purchase(uid, 0, "فاتورة MTN", total, number)
         bot.send_message(
             uid,
             f"✅ تم دفع فاتورة الرقم <code>{number}</code>\n"
