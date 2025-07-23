@@ -325,9 +325,9 @@ def register_bill_and_units(bot, history):
                 "unit_name": state["unit"]["name"],
                 "price": state["unit"]["price"]
             }
-        add_pending_request(
-            …  
-        )
+        # هذا تعليق يوضّح أنّ الكود أدناه يضيف طلب للطابور
+        add_pending_request(...)
+
         # لا داعي لنداء process_queue(bot) هنا مجدداً
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
@@ -408,9 +408,7 @@ def register_bill_and_units(bot, history):
                 "unit_name": state["unit"]["name"],
                 "price": state["unit"]["price"]
             }
-        add_pending_request(
-             …  
-        )
+        add_pending_request(...)
         # لا داعي لنداء process_queue(bot) هنا مجدداً
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
@@ -568,9 +566,7 @@ def register_bill_and_units(bot, history):
                 "amount": state["amount"],
                 "total": total
             }
-        add_pending_request(
-            …  
-        )
+        add_pending_request(...)
         # لا داعي لنداء process_queue(bot) هنا مجدداً
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
@@ -718,9 +714,7 @@ def register_bill_and_units(bot, history):
                 "amount": state["amount"],
                 "total": total
             }
-        add_pending_request(
-             …  
-        )
+        add_pending_request(...)
         # لا داعي لنداء process_queue(bot) هنا مجدداً
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
