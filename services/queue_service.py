@@ -18,6 +18,7 @@ def add_pending_request(user_id: int, username: str, request_text: str):
                 "user_id": user_id,
                 "username": username,
                 "request_text": request_text,
+                "payload": payload,
                 "created_at": datetime.utcnow().isoformat()
             }).execute()
             return
