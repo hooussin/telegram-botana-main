@@ -350,28 +350,20 @@ def register_bill_and_units(bot, history):
     def admin_accept_syr_unit(call):
         uid = int(call.data.split("_")[-1])
         st = user_states.get(uid, {})
-        number = st.get("number", "")
-        unit_idx = st.get("unit_idx", -1)
-
-        if unit_idx == -1 or unit_idx >= len(SYRIATEL_UNITS):
-            return bot.answer_callback_query(call.id, "❌ خطأ في البيانات")
-
-        unit_data = SYRIATEL_UNITS[unit_idx]
-        price = unit_data["price"]
-        unit_name = unit_data["name"]
+        price = st["unit"]["price"]
+        number = st["number"]
 
         if not has_sufficient_balance(uid, price):
             bal = get_balance(uid)
-            bot.send_message(uid, f"❌ لا يوجد رصيد كافٍ.\nرصيدك: {bal:,} ل.س\nالمطلوب: {price:,} ل.س")
+            bot.send_message(uid, f"❌ رصيدك {bal:,} ل.س والمطلوب {price:,} ل.س.")
             return bot.answer_callback_query(call.id, "❌")
 
-        pending_users.discard(uid)
-        _update_balance(uid, -price)
-        logging.warning(f"[DEBUG] السعر: {price} | اسم الوحدة: {unit_name} | index: {unit_idx}")
-        add_purchase(uid, 0, unit_name, price, number)
+        # 🟢 خصم الرصيد والتسجيل في حركة الشراء في خطوة واحدة
+        add_purchase(uid, 0, st["unit"]["name"], price, number)
+
         bot.send_message(
             uid,
-            f"✅ تم تحويل {unit_name} إلى الرقم <code>{number}</code>\n"
+            f"✅ تم تحويل {st['unit']['name']} إلى الرقم <code>{number}</code>\n"
             f"وتم خصم {price:,} ل.س من محفظتك.",
             parse_mode="HTML"
         )
