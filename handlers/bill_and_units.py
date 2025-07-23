@@ -582,42 +582,71 @@ def register_bill_and_units(bot, history):
         user_id = call.from_user.id
         total = user_states[user_id]["amount_with_fee"]
         balance = get_balance(user_id)
+
+        # 1) تحقق من الرصيد قبل الإرسال
         if balance < total:
             kb = make_inline_buttons(
                 ("❌ إلغاء", "cancel_all"),
                 ("💼 الذهاب للمحفظة", "go_wallet")
             )
-            bot.send_message(call.message.chat.id,
-                f"❌ لا يوجد رصيد كافٍ.\nرصيدك: {balance:,} ل.س\nالمطلوب: {total:,} ل.س\n"
-                f"الناقص: {total-balance:,} ل.س", reply_markup=kb)
+            bot.send_message(
+                call.message.chat.id,
+                f"❌ لا يوجد رصيد كافٍ.\n"
+                f"رصيدك: {balance:,} ل.س\n"
+                f"المطلوب: {total:,} ل.س\n"
+                f"الناقص: {total - balance:,} ل.س",
+                reply_markup=kb
+            )
             user_states.pop(user_id, None)
             return
+
+        # 2) وضع الخطوة في الحالة
         user_states[user_id]["step"] = "wait_admin_syr_bill"
+
+        # 3) تحضير أزرار الإدارة
         kb_admin = make_inline_buttons(
             ("✅ تأكيد دفع الفاتورة", f"admin_accept_syr_bill_{user_id}_{total}"),
-            ("❌ رفض", f"admin_reject_syr_bill_{user_id}")
+            ("❌ رفض",                   f"admin_reject_syr_bill_{user_id}")
         )
+ 
+        # 4) ملخص الطلب
         summary = (
             f"🔴 طلب دفع فاتورة سيرياتيل:\n"
             f"👤 المستخدم: {user_id}\n"
             f"📱 الرقم: {user_states[user_id]['number']}\n"
             f"💵 المبلغ: {user_states[user_id]['amount']:,} ل.س\n"
-            f"🧾 مع العمولة : {total:,} ل.س"
+            f"🧾 مع العمولة: {total:,} ل.س"
         )
-        bot.send_message(ADMIN_MAIN_ID, summary, reply_markup=kb_admin)
+
+        # 5) أضف الطلب إلى الطابور
         add_pending_request(
-        process_queue(bot)
             user_id=user_id,
             username=call.from_user.username,
-            request_text=(
-                f"🟡 فاتورة MTN:\n"
-                f"📱 {user_states[user_id]['number']}\n"
-                f"💵 {user_states[user_id]['amount']:,} ل.س\n"
-                f"🧾 مع العمولة : {total:,} ل.س"
-            )
-        )  # ← قوص الإغلاق هنا
+            request_text=summary,
+            payload={  # اختياري: إذا تريد تمرير بيانات إضافية
+                "type": "syr_bill",
+                "number": user_states[user_id]["number"],
+                "amount": user_states[user_id]["amount"],
+                "total": total
+            }
+        )
 
-        bot.send_message(call.message.chat.id, "✅ تم إرسال الطلب إلى الإدارة، بانتظار الموافقة.")
+        # 6) اطلق معالجة الطابور
+        process_queue(bot)
+
+        # 7) أكد للمستخدم أنّ طلبه في الانتظار
+        bot.send_message(
+            call.message.chat.id,
+            "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة."
+        )
+
+        # 8) أرسل الملخص للمدير مع أزرار الموافقة/الرفض
+        bot.send_message(
+            ADMIN_MAIN_ID,
+            summary,
+            reply_markup=kb_admin
+        )
+
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_syr_bill_"))
     def admin_accept_syr_bill(call):
