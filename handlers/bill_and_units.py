@@ -210,7 +210,7 @@ def register_bill_and_units(bot, history):
         if action == "sel":
             idx = int(parts[2])
             unit = SYRIATEL_UNITS[idx]
-            user_states[user_id] = {"step": "syr_unit_number", "unit": unit}
+            user_states[user_id] = {"step": "syr_unit_number", "unit": unit, "unit_idx": idx}
             kb = make_inline_buttons(("❌ إلغاء", "cancel_all"))
             bot.edit_message_text("📱 أدخل الرقم أو الكود الذي يبدأ بـ 093 أو 098 أو 099:", chat_id, call.message.message_id, reply_markup=kb)
             bot.answer_callback_query(call.id, text=_unit_label(unit))
@@ -240,7 +240,7 @@ def register_bill_and_units(bot, history):
         if action == "sel":
             idx = int(parts[2])
             unit = MTN_UNITS[idx]
-            user_states[user_id] = {"step": "mtn_unit_number", "unit": unit}
+            user_states[user_id] = {"step": "mtn_unit_number", "unit": unit, "unit_idx": idx}
             kb = make_inline_buttons(("❌ إلغاء", "cancel_all"))
             bot.edit_message_text("📱 أدخل الرقم أو الكود الذي يبدأ بـ 094 أو 095 أو 096:", chat_id, call.message.message_id, reply_markup=kb)
             bot.answer_callback_query(call.id, text=_unit_label(unit))
@@ -346,13 +346,14 @@ def register_bill_and_units(bot, history):
         uid = int(call.data.split("_")[-1])
         st = user_states.get(uid, {})
         number = st.get("number", "")
-        unit_name = st.get("unit", {}).get("name", "")
-        logging.warning("==== DEBUG admin_accept_syr_unit ====")
-        logging.warning("user_states[uid]: %s", st)
-        logging.warning("unit_name: %s", repr(unit_name))
-        logging.warning("SYRIATEL_UNITS: %s", [u["name"] for u in SYRIATEL_UNITS])
-        # احصل على السعر من القائمة الأصلية
-        price = next((u["price"] for u in SYRIATEL_UNITS if u["name"] == unit_name), 0)
+        unit_idx = st.get("unit_idx", -1)
+
+        if unit_idx == -1 or unit_idx >= len(SYRIATEL_UNITS):
+            return bot.answer_callback_query(call.id, "❌ خطأ في البيانات")
+
+        unit_data = SYRIATEL_UNITS[unit_idx]
+        price = unit_data["price"]
+        unit_name = unit_data["name"]
 
         if not has_sufficient_balance(uid, price):
             bal = get_balance(uid)
@@ -370,7 +371,6 @@ def register_bill_and_units(bot, history):
         )
         bot.answer_callback_query(call.id, "✅")
         user_states.pop(uid, None)
-
 
     @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_reject_syr_unit_"))
     def admin_reject_syr_unit(call):
@@ -469,9 +469,14 @@ def register_bill_and_units(bot, history):
         uid = int(call.data.split("_")[-1])
         st = user_states.get(uid, {})
         number = st.get("number", "")
-        unit_name = st.get("unit", {}).get("name", "")
-        # جلب السعر الصحيح من القائمة MTN_UNITS
-        price = next((u["price"] for u in MTN_UNITS if u["name"] == unit_name), 0)
+        unit_idx = st.get("unit_idx", -1)
+
+        if unit_idx == -1 or unit_idx >= len(MTN_UNITS):
+            return bot.answer_callback_query(call.id, "❌ خطأ في البيانات")
+
+        unit_data = MTN_UNITS[unit_idx]
+        price = unit_data["price"]
+        unit_name = unit_data["name"]
 
         if not has_sufficient_balance(uid, price):
             bal = get_balance(uid)
