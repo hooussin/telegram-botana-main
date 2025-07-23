@@ -11,22 +11,24 @@ QUEUE_TABLE = "pending_requests"
 _queue_lock = threading.Lock()
 _queue_cooldown = False  # يمنع إظهار أكثر من طلب
 
-def add_pending_request(user_id: int, username: str, request_text: str):
+def add_pending_request(user_id: int, username: str, request_text: str, payload=None):
     for attempt in range(1, 4):
         try:
-            client.table(QUEUE_TABLE).insert({
+            data = {
                 "user_id": user_id,
                 "username": username,
                 "request_text": request_text,
-                "payload": payload,
                 "created_at": datetime.utcnow().isoformat()
-            }).execute()
+            }
+            if payload is not None:
+                data["payload"] = payload
+            client.table(QUEUE_TABLE).insert(data).execute()
             return
         except httpx.ReadError as e:
             logging.warning(f"Attempt {attempt}: ReadError in add_pending_request: {e}")
             time.sleep(0.5)
     logging.error(f"Failed to add pending request for user {user_id} after 3 attempts.")
-
+    
 def delete_pending_request(request_id: int):
     try:
         client.table(QUEUE_TABLE).delete().eq("id", request_id).execute()
