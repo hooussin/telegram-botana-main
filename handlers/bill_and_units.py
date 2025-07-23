@@ -325,11 +325,12 @@ def register_bill_and_units(bot, history):
                 "unit_name": state["unit"]["name"],
                 "price": state["unit"]["price"]
             }
+        add_pending_request(
+            …  
         )
-        process_queue(bot)
-        bot.send_message(call.message.chat.id,
-            "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة."
-        )
+        # لا داعي لنداء process_queue(bot) هنا مجدداً
+        bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
+
 
     def cancel_all(call):
         user_states.pop(call.from_user.id, None)
@@ -407,11 +408,11 @@ def register_bill_and_units(bot, history):
                 "unit_name": state["unit"]["name"],
                 "price": state["unit"]["price"]
             }
+        add_pending_request(
+             …  
         )
-        process_queue(bot)
-        bot.send_message(call.message.chat.id,
-            "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة."
-        )
+        # لا داعي لنداء process_queue(bot) هنا مجدداً
+        bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
     def admin_accept_mtn_unit(call):
         user_id = int(call.data.split("_")[-1])
@@ -567,11 +568,12 @@ def register_bill_and_units(bot, history):
                 "amount": state["amount"],
                 "total": total
             }
+        add_pending_request(
+            …  
         )
-        process_queue(bot)
-        bot.send_message(call.message.chat.id,
-            "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة."
-        )
+        # لا داعي لنداء process_queue(bot) هنا مجدداً
+        bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
+
 
     def admin_accept_syr_bill(call):
         user_id = int(call.data.split("_")[-2])
@@ -716,11 +718,11 @@ def register_bill_and_units(bot, history):
                 "amount": state["amount"],
                 "total": total
             }
+        add_pending_request(
+             …  
         )
-        process_queue(bot)
-        bot.send_message(call.message.chat.id,
-            "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة."
-        )
+        # لا داعي لنداء process_queue(bot) هنا مجدداً
+        bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
     def admin_accept_mtn_bill(call):
         user_id = int(call.data.split("_")[-2])
