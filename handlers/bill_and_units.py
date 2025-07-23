@@ -343,8 +343,12 @@ def register_bill_and_units(bot, history):
     def admin_accept_syr_unit(call):
         uid = int(call.data.split("_")[-1])
         st = user_states.get(uid, {})
-        price = st.get("unit", {}).get("price", 0)
         number = st.get("number", "")
+        unit_name = st.get("unit", {}).get("name", "")
+
+        # احصل على السعر من القائمة الأصلية
+        price = next((u["price"] for u in SYRIATEL_UNITS if u["name"] == unit_name), 0)
+
         if not has_sufficient_balance(uid, price):
             bal = get_balance(uid)
             bot.send_message(uid, f"❌ لا يوجد رصيد كافٍ.\nرصيدك: {bal:,} ل.س\nالمطلوب: {price:,} ل.س")
@@ -352,15 +356,16 @@ def register_bill_and_units(bot, history):
 
         pending_users.discard(uid)
         _update_balance(uid, -price)
-        add_purchase(uid, 0, st['unit']['name'], price, number)
+        add_purchase(uid, 0, unit_name, price, number)
         bot.send_message(
             uid,
-            f"✅ تم تحويل {st['unit']['name']} إلى الرقم <code>{number}</code>\n"
+            f"✅ تم تحويل {unit_name} إلى الرقم <code>{number}</code>\n"
             f"وتم خصم {price:,} ل.س من محفظتك.",
             parse_mode="HTML"
         )
         bot.answer_callback_query(call.id, "✅")
         user_states.pop(uid, None)
+
 
     @bot.callback_query_handler(func=lambda c: c.data.startswith("admin_reject_syr_unit_"))
     def admin_reject_syr_unit(call):
@@ -458,8 +463,11 @@ def register_bill_and_units(bot, history):
     def admin_accept_mtn_unit(call):
         uid = int(call.data.split("_")[-1])
         st = user_states.get(uid, {})
-        price = st.get("unit", {}).get("price", 0)
         number = st.get("number", "")
+        unit_name = st.get("unit", {}).get("name", "")
+        # جلب السعر الصحيح من القائمة MTN_UNITS
+        price = next((u["price"] for u in MTN_UNITS if u["name"] == unit_name), 0)
+
         if not has_sufficient_balance(uid, price):
             bal = get_balance(uid)
             bot.send_message(uid, f"❌ رصيدك {bal:,} ل.س والمطلوب {price:,} ل.س.")
@@ -467,10 +475,10 @@ def register_bill_and_units(bot, history):
 
         pending_users.discard(uid)
         _update_balance(uid, -price)
-        add_purchase(uid, 0, st['unit']['name'], price, number)
+        add_purchase(uid, 0, unit_name, price, number)
         bot.send_message(
             uid,
-            f"✅ تم تحويل {st['unit']['name']} إلى الرقم <code>{number}</code>\n"
+            f"✅ تم تحويل {unit_name} إلى الرقم <code>{number}</code>\n"
             f"وتم خصم {price:,} ل.س من محفظتك.",
             parse_mode="HTML"
         )
