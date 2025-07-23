@@ -70,33 +70,33 @@ def register(bot, history):
         bot.reply_to(msg, f"🚫 تم إلغاء الطلب {req_id}")
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_queue_"))
-def handle_queue_action(call):
-    parts = call.data.split("_")
-    action = parts[2]
-    request_id = int(parts[3])
+    def handle_queue_action(call):
+        parts = call.data.split("_")
+        action = parts[2]
+        request_id = int(parts[3])
 
-    # Fetch request with payload
-    res = get_table("pending_requests") \
-        .select("user_id", "request_text", "payload") \
-        .eq("id", request_id) \
-        .execute()
-    if not res.data:
-        return bot.answer_callback_query(call.id, "❌ الطلب غير موجود.")
-    req = res.data[0]
-    user_id = req["user_id"]
-    payload = req.get("payload", {})
+        # Fetch request with payload
+        res = get_table("pending_requests") \
+            .select("user_id", "request_text", "payload") \
+            .eq("id", request_id) \
+            .execute()
+        if not res.data:
+            return bot.answer_callback_query(call.id, "❌ الطلب غير موجود.")
+        req = res.data[0]
+        user_id = req["user_id"]
+        payload = req.get("payload", {})
 
-    # Remove admin message
-    bot.delete_message(call.message.chat.id, call.message.message_id)
+        # Remove admin message
+        bot.delete_message(call.message.chat.id, call.message.message_id)
 
-    if action == "postpone":
-        postpone_request(request_id)
-        bot.answer_callback_query(call.id, "✅ تم تأجيل الطلب.")
-        bot.send_message(
-            user_id,
-            "⏳ نعتذر عن التأخير؛ طلبك أعيد إلى نهاية القائمة."
-        )
-        queue_cooldown_start(bot)
+        if action == "postpone":
+            postpone_request(request_id)
+            bot.answer_callback_query(call.id, "✅ تم تأجيل الطلب.")
+            bot.send_message(
+                user_id,
+                "⏳ نعتذر عن التأخير؛ طلبك أعيد إلى نهاية القائمة."
+            )
+            queue_cooldown_start(bot)
 
     elif action == "cancel":
         delete_pending_request(request_id)
