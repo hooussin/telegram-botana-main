@@ -345,7 +345,9 @@ def register_bill_and_units(bot, history):
         st = user_states.get(uid, {})
         number = st.get("number", "")
         unit_name = st.get("unit", {}).get("name", "")
-
+        
+        print(f"DEBUG | unit_name = {unit_name!r}")
+        print("DEBUG | SYRIATEL_UNITS =", [u["name"] for u in SYRIATEL_UNITS])
         # احصل على السعر من القائمة الأصلية
         price = next((u["price"] for u in SYRIATEL_UNITS if u["name"] == unit_name), 0)
 
