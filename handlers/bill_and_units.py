@@ -417,35 +417,52 @@ def register_bill_and_units(bot, history):
         user_id = call.from_user.id
         state = user_states[user_id]
         state["step"] = "wait_admin_mtn_unit"
+
+        # أزرار الإدارة
         kb_admin = make_inline_buttons(
             ("✅ تأكيد العملية", f"admin_accept_mtn_unit_{user_id}"),
-            ("❌ رفض", f"admin_reject_mtn_unit_{user_id}")
+            ("❌ رفض",          f"admin_reject_mtn_unit_{user_id}")
         )
+
+        # ملخص الطلب للإدارة
         summary = (
             f"🟡 طلب وحدات MTN:\n"
             f"👤 المستخدم: {user_id}\n"
             f"📱 الرقم/الكود: {state['number']}\n"
-            f"💵 الكمية: {state['unit']['name']}\n"
-            f"💰 السعر: {state['unit']['price']:,} ل.س\n"
+            f"💵 الكمية:   {state['unit']['name']}\n"
+            f"💰 السعر:    {state['unit']['price']:,} ل.س\n"
             f"✅ بانتظار موافقة الإدارة"
         )
-        bot.send_message(call.message.chat.id, "✅ تم إرسال الطلب للإدارة، بانتظار الموافقة.")
-                # إضافة إلى الطابور ومؤجلة حتى موافقة الإدارة
+
+        # 1) أضف الطلب إلى طابور queue_service
         add_pending_request(
-            user_id=call.from_user.id,
+            user_id=user_id,
             username=call.from_user.username,
             request_text=(
                 f"🟡 وحدات MTN:\n"
-                f"👤 المستخدم: {call.from_user.id}\n"
-                f"📱 {user_states[call.from_user.id]['number']}\n"
-                f"💵 {user_states[call.from_user.id]['unit']['name']}\n"
-                f"💰 {user_states[call.from_user.id]['unit']['price']:,} ل.س"
+                f"📱 {state['number']}\n"
+                f"💵 {state['unit']['name']}\n"
+                f"💰 {state['unit']['price']:,} ل.س"
             )
         )
+        # 2) اطلق معالجة الطابور
         process_queue(bot)
-        bot.answer_callback_query(call.id, "✅ تم إرسال الطلب للإدارة")
-        bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
+        # 3) رد سريع على النقر
+        bot.answer_callback_query(call.id, "✅ تم إرسال الطلب للإدارة")
+
+        # 4) أخبر المستخدم
+        bot.send_message(
+            call.message.chat.id,
+            "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة."
+        )
+
+        # 5) أرسل الملخص للمدير مع أزرار الموافقة/الرفض
+        bot.send_message(
+            ADMIN_MAIN_ID,
+            summary,
+            reply_markup=kb_admin
+        )
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_accept_mtn_unit_"))
     def admin_accept_mtn_unit(call):
@@ -543,7 +560,7 @@ def register_bill_and_units(bot, history):
     def confirm_syr_bill_amount(call):
         user_id = call.from_user.id
         amount = user_states[user_id]["amount"]
-        amount_with_fee = int(amount * 1.17)
+        amount_with_fee = int(amount * 1.10)
         user_states[user_id]["amount_with_fee"] = amount_with_fee
         user_states[user_id]["step"] = "syr_bill_final_confirm"
         kb = make_inline_buttons(
