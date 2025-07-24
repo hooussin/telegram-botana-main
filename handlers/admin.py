@@ -97,7 +97,26 @@ def register(bot, history):
             queue_cooldown_start(bot)
 
         elif action == "cancel":
-            delete_pending_request(request_id)
+                        elif typ == "internet":
+                total = payload.get("total", 0)
+                provider = payload.get("provider")
+                speed = payload.get("speed")
+                phone = payload.get("phone")
+                deduct_balance(user_id, total)
+                add_purchase(
+                    user_id,
+                    total,
+                    f"إنترنت {provider} بسرعة {speed}",
+                    total,
+                    phone
+                )
+                bot.send_message(
+                    user_id,
+                    f"✅ تم شحن إنترنت {provider} بسرعة {speed} إلى {phone}.\n"
+                    f"تم خصم {total:,} ل.س من محفظتك.",
+                    parse_mode="HTML"
+                )
+delete_pending_request(request_id)
             bot.answer_callback_query(call.id, "🚫 تم إلغاء الطلب.")
             queue_cooldown_start(bot)
 
