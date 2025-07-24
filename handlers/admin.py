@@ -28,8 +28,8 @@ from services.recharge_service import validate_recharge_code
 
 from handlers.products import pending_orders  # هام
 
-import cash_transfer
-import companies_transfer
+from handlers import cash_transfer
+from handlers import companies_transfer
 
 SECRET_CODES_FILE = "data/secret_codes.json"
 os.makedirs("data", exist_ok=True)
