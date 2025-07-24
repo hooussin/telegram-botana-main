@@ -192,17 +192,6 @@ def setup_inline_handlers(bot, admin_ids):
         product = order["product"]
         player_id = order["player_id"]
         price_syp = convert_price_usd_to_syp(product.price)
-        # تحقق فوري من الرصيد وحجز المبلغ
-        balance = get_balance(user_id)
-        comm = 0  # لا توجد عمولة في المنتجات
-        if balance < price_syp:
-            bot.send_message(
-                user_id,
-                f"❌ لا يوجد رصيد كافٍ لإرسال الطلب.\nرصيدك الحالي: {balance:,} ل.س\nالمطلوب: {price_syp:,} ل.س\nيرجى شحن المحفظة أولاً."
-            )
-            return
-        # حجز المبلغ
-        deduct_balance(user_id, price_syp)
 
         # **تحقق من الرصيد قبل إرسال الطلب للإدمن والطابور**
         balance = get_balance(user_id)
@@ -212,10 +201,16 @@ def setup_inline_handlers(bot, admin_ids):
                 f"❌ لا يوجد رصيد كافٍ لإرسال الطلب.\nرصيدك الحالي: {balance:,} ل.س\nالسعر المطلوب: {price_syp:,} ل.س\nيرجى شحن المحفظة أولاً."
             )
             return
+        # حجز المبلغ فور إرسال الطلب للطابور
+        deduct_balance(user_id, price_syp)
+        # تحديث الرصيد اللحظي بعد الحجز
+        balance = get_balance(user_id)
+
 
         pending_orders.add(user_id)
         admin_msg = (
-            f"رصيد المستخدم: {balance:,} ل.س\n"
+            f"💰 رصيد المستخدم: {balance:,} ل.س\n"
+
             f"🆕 طلب جديد\n"
             f"👤 الاسم: <code>{call.from_user.full_name}</code>\n"
             f"يوزر: <code>@{call.from_user.username or ''}</code>\n"
@@ -232,15 +227,13 @@ def setup_inline_handlers(bot, admin_ids):
             username=call.from_user.username,
             request_text=admin_msg,
             payload={
-                "type": "product",
+                "type": "order",
                 "product_id": product.product_id,
-                "product_name": product.name,
                 "player_id": player_id,
-                "reserved": price_syp,
-                "initial_balance": balance,
+                "price": price_syp,
+                "reserved": price_syp
             }
-        )
-            user_id=user_id,
+
             username=call.from_user.username,
             request_text=admin_msg
         )
