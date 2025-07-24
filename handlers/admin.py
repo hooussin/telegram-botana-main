@@ -98,6 +98,12 @@ def register(bot, history):
 
         elif action == "cancel":
             delete_pending_request(request_id)
+            # إرجاع المبلغ المحجوز عند إلغاء الأدمن
+            reserved = payload.get("reserved", 0)
+            if reserved:
+                add_balance(user_id, reserved)
+                bot.send_message(user_id, f"🚫 تم إلغاء طلبك واسترجاع {reserved:,} ل.س.")
+            
             bot.answer_callback_query(call.id, "🚫 تم إلغاء الطلب.")
             queue_cooldown_start(bot)
 
@@ -111,32 +117,27 @@ def register(bot, history):
                 add_purchase(user_id, price, name, price, num)
                 bot.send_message(user_id, f"✅ تم تحويل {name} بنجاح إلى {num}.\nتم خصم {price:,} ل.س.", parse_mode="HTML")
             elif typ in ("syr_bill", "mtn_bill"):
-                total = payload.get("total", 0)
+                reserved = payload.get("reserved", 0)
                 num = payload.get("number")
                 label = "فاتورة سيرياتيل" if typ=="syr_bill" else "فاتورة MTN"
-                deduct_balance(user_id, total)
-                add_purchase(user_id, total, label, total, num)
-                bot.send_message(user_id, f"✅ تم دفع {label} للرقم {num}.\nتم خصم {total:,} ل.س.", parse_mode="HTML")
+                # لا نخصم مرة ثانية لأن الحجز تم مسبقًا
+                add_purchase(user_id, reserved, label, reserved, num)
+                bot.send_message(user_id, f"✅ تم دفع {label} للرقم {num}.
+تم خصم {reserved:,} ل.س.", parse_mode="HTML")
+            delete_pending_request(request_id)
+
             elif typ == "internet":
-                total = payload.get("total", 0)
+                reserved = payload.get("reserved", 0)
                 provider = payload.get("provider")
                 speed = payload.get("speed")
                 phone = payload.get("phone")
-                deduct_balance(user_id, total)
-                add_purchase(
-                    user_id,
-                    total,
-                    f"إنترنت {provider} بسرعة {speed}",
-                    total,
-                    phone
-                )
-                bot.send_message(
-                    user_id,
-                    f"✅ تم شحن إنترنت {provider} بسرعة {speed} إلى {phone}.\n"
-                    f"تم خصم {total:,} ل.س من محفظتك.",
-                    parse_mode="HTML"
-                )
-            delete_pending_request(request_id)
+                # لا نخصم مرة ثانية لأن الحجز تم مسبقًا
+                add_purchase(user_id, reserved, f"إنترنت {provider} {speed}", reserved, phone)
+                bot.send_message(user_id, f"✅ تم شحن إنترنت {provider} بسرعة {speed} للرقم {phone}.
+تم خصم {reserved:,} ل.س.", parse_mode="HTML")
+                delete_pending_request(request_id)
+
+            
             bot.answer_callback_query(call.id, "✅ تم تنفيذ العملية")
             queue_cooldown_start(bot)
 
