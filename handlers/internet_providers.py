@@ -16,11 +16,11 @@ from services.wallet_service import (
     deduct_balance,
 )
 from services.queue_service import (
-from database.db import get_table  # لمنع الطلبات المتزامنة
     add_pending_request,
     process_queue,
     delete_pending_request,
 )
+from database.db import get_table  # لمنع الطلبات المتزامنة
 # =====================================
 #       ثوابت
 # =====================================
@@ -106,14 +106,6 @@ def _confirm_inline_kb() -> types.InlineKeyboardMarkup:
 # =====================================
 #   بدء القوائم وتسجيل المعالجات
 # =====================================
-def start_internet_provider_menu(bot, message):
-    bot.send_message(
-        message.chat.id,
-        "⚠️ اختر أحد مزودات الإنترنت:\n💸 العمولة لكل 5000 ل.س = 600 ل.س",
-        reply_markup=_provider_inline_kb()
-    )
-    user_net_state[message.from_user.id] = {"step": "choose_provider"}
-
 def register(bot):
     """تسجيل معالجات مزودي الإنترنت."""
     # فتح القائمة الرئيسية
@@ -296,3 +288,11 @@ def register(bot):
         )
 
         st["step"] = "wait_admin"
+
+def start_internet_provider_menu(bot, message):
+    bot.send_message(
+        message.chat.id,
+        "⚠️ اختر أحد مزودات الإنترنت:\n💸 العمولة لكل 5000 ل.س = 600 ل.س",
+        reply_markup=_provider_inline_kb()
+    )
+    user_net_state[message.from_user.id] = {"step": "choose_provider"}
