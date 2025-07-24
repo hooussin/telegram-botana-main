@@ -1,5 +1,6 @@
 from telebot import types
 from services.wallet_service import add_purchase, get_balance, has_sufficient_balance, deduct_balance
+from services.queue_service import get_table
 from config import ADMIN_MAIN_ID
 from services.wallet_service import register_user_if_not_exist
 from handlers import keyboards
