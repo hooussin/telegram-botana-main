@@ -1,12 +1,10 @@
 import logging
 from telebot import types
-from services.wallet_service import register_user_if_not_exist, get_balance
+from services.wallet_service import register_user_if_not_exist, get_balance, deduct_balance
 from config import BOT_NAME
 from handlers import keyboards
-from services.queue_service import process_queue, add_pending_request, queue_cooldown_start
+from services.queue_service import process_queue, add_pending_request
 from database.models.product import Product
-from services.queue_service import add_pending_request
-from database.db import client
 
 pending_orders = set()
 user_orders = {}
@@ -98,7 +96,7 @@ def handle_player_id(message, bot):
         reply_markup=keyboard
     )
 
-def register(bot, history):
+def register_message_handlers(bot, history):
     @bot.message_handler(func=lambda msg: msg.text in ["🛒 المنتجات", "💼 المنتجات"])
     def handle_main_product_menu(msg):
         user_id = msg.from_user.id
@@ -246,7 +244,3 @@ def register(bot, history):
     register_message_handlers(bot, history)
     # تسجيل الهاندلرات للكولباك
     setup_inline_handlers(bot, admin_ids=[])
-
-def register_message_handlers(bot, history):
-    # ضع هنا جميع @bot.message_handler الخاصة بك
-    ...
