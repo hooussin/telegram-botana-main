@@ -62,12 +62,12 @@ def calculate_commission(amount: int) -> int:
 # =====================================
 #   مفاتيح callback
 # =====================================
-CB_PROV_PREFIX       = "iprov"      # اختيار مزوّد
-CB_SPEED_PREFIX     = "ispeed"     # اختيار سرعة
-CB_BACK_PROV         = "iback_prov"   # رجوع لقائمة المزودين
-CB_BACK_SPEED       = "iback_speed"  # رجوع لقائمة السرعات
-CB_CONFIRM            = "iconfirm"     # تأكيد (إرسال لطابور الأدمن)
-CB_CANCEL            = "icancel"      # إلغاء من المستخدم
+CB_PROV_PREFIX   = "iprov"      # اختيار مزوّد
+CB_SPEED_PREFIX = "ispeed"     # اختيار سرعة
+CB_BACK_PROV     = "iback_prov"   # رجوع لقائمة المزودين
+CB_BACK_SPEED   = "iback_speed"  # رجوع لقائمة السرعات
+CB_CONFIRM       = "iconfirm"     # تأكيد (إرسال لطابور الأدمن)
+CB_CANCEL        = "icancel"      # إلغاء من المستخدم
 
 # Inline keyboards
 def _provider_inline_kb() -> types.InlineKeyboardMarkup:
@@ -236,21 +236,33 @@ def register(bot):
         st = user_net_state.get(user_id)
         if not st or st.get("step") != "confirm":
             return bot.answer_callback_query(call.id, "انتهت صلاحية هذا الطلب.", show_alert=True)
+
         price = st["price"]
         comm  = calculate_commission(price)
         total = price + comm
 
-        # نصّ بكود Markdown للأدمن
+        # 1) تحقق فوري من الرصيد قبل الطابور
+        balance = get_balance(user_id)
+        if balance < total:
+            missing = total - balance
+            return bot.answer_callback_query(
+                call.id,
+                f"❌ رصيدك الحالي: {balance:,} ل.س\nالناقص: {missing:,} ل.س\nيرجى شحن المحفظة أولاً.",
+                show_alert=True
+            )
+
+        # 2) نص طلب الأدمن مع تضمين الرصيد اللحظي
         adm_txt = (
             "📥 *طلب جديد (إنترنت)*\n"
             f"المستخدم: {user_id}\n"
+            f"رصيد المستخدم: {balance:,} ل.س\n"
             f"مزود: {st['provider']}\n"
             f"سرعة: {st['speed']}\n"
             f"رقم: `{st['phone']}`\n"
             f"المبلغ: {price:,} + عمولة {comm:,} = {total:,} ل.س"
         )
 
-        # دفع الطلب للطابور
+        # 3) دفع الطلب للطابور
         add_pending_request(
             user_id=user_id,
             username=call.from_user.username,
@@ -267,14 +279,12 @@ def register(bot):
         )
         process_queue(bot)
 
-        # رسالة موحدة للمستخدم
-        bot.answer_callback_query(call.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.", show_alert=False)
+        # 4) رسالة موحدة للمستخدم
+        bot.answer_callback_query(call.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
             text="📨 تم إرسال طلبك لمسؤول البوت. سيتم إشعارك بعد المراجعة."
         )
 
-        # لا نغير الـ step حتى يحتفظ المستخدم بالتفاصيل
         st["step"] = "wait_admin"
-
