@@ -119,13 +119,16 @@ def register(bot, history):
             elif typ in ("syr_bill", "mtn_bill"):
                 reserved = payload.get("reserved", 0)
                 num = payload.get("number")
-                label = "فاتورة سيرياتيل" if typ=="syr_bill" else "فاتورة MTN"
+                label = "فاتورة سيرياتيل" if typ == "syr_bill" else "فاتورة MTN"
                 # لا نخصم مرة ثانية لأن الحجز تم مسبقًا
                 add_purchase(user_id, reserved, label, reserved, num)
-                bot.send_message(user_id, f"✅ تم دفع {label} للرقم {num}.
-تم خصم {reserved:,} ل.س.", parse_mode="HTML")
-            delete_pending_request(request_id)
-
+                bot.send_message(
+                    user_id,
+                    f"✅ تم دفع {label} للرقم {num}.\n"
+                    f"تم خصم {reserved:,} ل.س.",
+                    parse_mode="HTML"
+                )
+                delete_pending_request(request_id)
             elif typ == "internet":
                 reserved = payload.get("reserved", 0)
                 provider = payload.get("provider")
