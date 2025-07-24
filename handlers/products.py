@@ -233,13 +233,11 @@ def setup_inline_handlers(bot, admin_ids):
                 "price": price_syp,
                 "reserved": price_syp
             }
+        )  # ← هنا نغلق القوسين
 
-            username=call.from_user.username,
-            request_text=admin_msg
-        )
         bot.send_message(
-        user_id,
-        "✅ تم إرسال طلبك للإدارة. سيتم معالجته خلال مدة من 1 إلى 4 دقائق. لن تتمكن من تقديم طلب جديد حتى معالجة هذا الطلب."
+            user_id,
+            "✅ تم إرسال طلبك للإدارة. سيتم معالجته خلال مدة من 1 إلى 4 دقائق. لن تتمكن من تقديم طلب جديد حتى معالجة هذا الطلب."
         )
-        process_queue(bot)   # ← هذا السطر مهم جداً!
-        # نهاية ملف products.py
+process_queue(bot)   # ← هذا السطر مهم جداً!
+
