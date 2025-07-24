@@ -59,6 +59,13 @@ def register_companies_transfer(bot, history):
     ])
     def select_company(call):
         user_id = call.from_user.id
+
+        # تحقق طلب معلق مسبق
+        existing = get_table("pending_requests").select("id").eq("user_id", user_id).execute()
+        if existing.data:
+            bot.answer_callback_query(call.id, "❌ لديك طلب قيد الانتظار، الرجاء الانتظار حتى الانتهاء.", show_alert=True)
+            return
+
         company_map = {
             "company_alharam": "شركة الهرم",
             "company_alfouad": "شركة الفؤاد",
@@ -188,6 +195,13 @@ def register_companies_transfer(bot, history):
         user_states[user_id]["amount"] = amount
         user_states[user_id]["commission"] = commission
         user_states[user_id]["total"] = total
+
+        # تحقق طلب معلق مسبق قبل تأكيد المبلغ
+        existing = get_table("pending_requests").select("id").eq("user_id", user_id).execute()
+        if existing.data:
+            bot.send_message(msg.chat.id, "❌ لديك طلب قيد الانتظار، الرجاء الانتظار حتى الانتهاء.")
+            return
+
         user_states[user_id]["step"] = "confirming_transfer"
         kb = make_inline_buttons(
             ("❌ إلغاء", "company_commission_cancel"),
@@ -264,7 +278,17 @@ def register_companies_transfer(bot, history):
         add_pending_request(
             user_id=user_id,
             username=call.from_user.username,
-            request_text=msg
+            request_text=msg,
+            payload={
+                "type": "companies_transfer",
+                "beneficiary_name": data.get('beneficiary_name'),
+                "beneficiary_number": data.get('beneficiary_number'),
+                "company": data.get('company'),
+                "amount": amount,
+                "commission": commission,
+                "total": total,
+                "reserved": total,
+            }
         )
         msg_admin = bot.send_message(
             ADMIN_MAIN_ID,
@@ -273,7 +297,7 @@ def register_companies_transfer(bot, history):
         )
         user_states[user_id]["admin_message_id"] = msg_admin.message_id
         user_states[user_id]["admin_chat_id"] = ADMIN_MAIN_ID
-        
+
     @bot.callback_query_handler(func=lambda call: call.data == "recharge_wallet")
     def show_recharge_methods(call):
         bot.send_message(call.message.chat.id, "💳 اختر طريقة شحن المحفظة:", reply_markup=keyboards.recharge_menu())
