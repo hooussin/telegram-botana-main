@@ -101,9 +101,7 @@ def _build_paged_inline_keyboard(items, page: int = 0, page_size: int = 5, prefi
 
     return kb, pages
 
-# =======================================================================
-# التسجيل الرئيسي
-# =======================================================================
+
 def register_bill_and_units(bot, history):
     """تسجيل جميع هاندلرات خدمات (وحدات/فواتير) لكل من سيرياتيل و MTN.
     تم إضافة دعم InlineKeyboard مع Pagination دون المساس بمنطق المراحل الحالي.
@@ -714,27 +712,17 @@ def register_bill_and_units(bot, history):
         ) 
         bot.send_message(call.message.chat.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
 
-    def admin_accept_mtn_bill(call):
-        user_id = int(call.data.split("_")[-2])
-        total = int(call.data.split("_")[-1])
-        if not has_sufficient_balance(user_id, total):
-            bot.send_message(user_id, "❌ لا يوجد رصيد كافٍ في محفظتك.")
-            bot.answer_callback_query(call.id, "❌ رصيد غير كافٍ")
-            return
-        deduct_balance(user_id, total)
-        bot.send_message(user_id, f"✅ تم دفع فاتورة MTN بنجاح.\nالمبلغ المقتطع: {total:,} ل.س")
-        bot.answer_callback_query(call.id, "✅ تم تنفيذ الدفع")
-        user_states.pop(user_id, None)
-
 
     # زر الذهاب للمحفظة في حال الرصيد غير كافٍ
     @bot.callback_query_handler(func=lambda call: call.data == "go_wallet")
     def go_wallet(call):
         user_states.pop(call.from_user.id, None)
         bot.send_message(call.message.chat.id, "💼 للذهاب للمحفظة، اضغط على زر المحفظة في القائمة الرئيسية.") 
+
+
 def register(bot):
     """
-    تستدعى من main.py لتسجيل جميع الهاندلرات في هذا الملف
+    تستدعى من main.py لتسجيل جميع هاندلرات bill_and_units
     """
-    # استدعاء تسجيل جميع الهاندلرات الخاصة بـ bill_and_units
+    # نمرر قاموس history فارغ لأنّ register_bill_and_units يتوقعه
     register_bill_and_units(bot, {})
