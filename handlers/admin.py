@@ -134,6 +134,7 @@ def register(bot, history):
                 provider  = payload.get("provider")
                 speed     = payload.get("speed")
                 phone     = payload.get("phone")
+                print(f"[DEBUG] Accepting internet order: reserved={reserved}, provider={provider}, speed={speed}, phone={phone}")
                 # لا نخصم مرة ثانية لأن الحجز تم مسبقًا
                 add_purchase(user_id, reserved, f"إنترنت {provider} {speed}", reserved, phone)
                 bot.send_message(
