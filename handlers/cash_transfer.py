@@ -65,13 +65,10 @@ def make_inline_buttons(*buttons):
     return kb
 
 def get_balance(user_id):
-    # يجب أن تربطه بقاعدة البيانات الحقيقية أو supabase
-    # مثال وهمي:
     from services.wallet_service import get_balance as get_bal
     return get_bal(user_id)
 
 def deduct_balance(user_id, amount):
-    # مثال وهمي:
     from services.wallet_service import deduct_balance as deduct_bal
     deduct_bal(user_id, amount)
 
@@ -96,6 +93,13 @@ def register(bot, history):
             return
         cash_type = CASH_TYPES[idx]
         user_id = call.from_user.id
+
+        # تحقق طلب معلق مسبق
+        existing = get_table("pending_requests").select("id").eq("user_id", user_id).execute()
+        if existing.data:
+            bot.answer_callback_query(call.id, "❌ لديك طلب قيد الانتظار، الرجاء الانتظار حتى الانتهاء.", show_alert=True)
+            return
+
         user_states[user_id] = {"step": "show_commission", "cash_type": cash_type}
         history.setdefault(user_id, []).append("cash_menu")
         logging.info(f"[CASH][{user_id}] اختار نوع تحويل: {cash_type}")
@@ -123,6 +127,13 @@ def register(bot, history):
     @bot.message_handler(func=lambda msg: msg.text in CASH_TYPES)
     def handle_cash_type(msg):
         user_id = msg.from_user.id
+
+        # تحقق طلب معلق مسبق
+        existing = get_table("pending_requests").select("id").eq("user_id", user_id).execute()
+        if existing.data:
+            bot.send_message(msg.chat.id, "❌ لديك طلب قيد الانتظار، الرجاء الانتظار حتى الانتهاء.")
+            return
+
         cash_type = msg.text
         user_states[user_id] = {"step": "show_commission", "cash_type": cash_type}
         history.setdefault(user_id, []).append("cash_menu")
@@ -204,6 +215,13 @@ def register(bot, history):
         state["amount"] = amount
         state["commission"] = commission
         state["total"] = total
+
+        # تحقق طلب معلق مسبق عند تأكيد المبلغ
+        existing = get_table("pending_requests").select("id").eq("user_id", user_id).execute()
+        if existing.data:
+            bot.send_message(msg.chat.id, "❌ لديك طلب قيد الانتظار، الرجاء الانتظار حتى الانتهاء.")
+            return
+
         state["step"] = "confirming"
         logging.info(f"[CASH][{user_id}] أدخل مبلغ التحويل: {amount}, عمولة: {commission}, الإجمالي: {total}")
 
@@ -273,6 +291,7 @@ def register(bot, history):
         logging.info(f"[CASH][{user_id}] طلب تحويل جديد: {data}")
         bot.edit_message_text("✅ تم إرسال الطلب، بانتظار موافقة الإدارة.", call.message.chat.id, call.message.message_id)
 
+        # إضافة الطلب مع الحجز للطابور
         add_pending_request(
             user_id=user_id,
             username=call.from_user.username,
@@ -282,8 +301,17 @@ def register(bot, history):
                 f"💰 المبلغ: {amount:,} ل.س\n"
                 f"💼 الطريقة: {data.get('cash_type')}\n"
                 f"🧾 العمولة: {commission:,} ل.س\n"
-                f"✅ الإجمالي: {total:,} ل.س"
-            )
+                f"✅ الإجمالي: {total:,} ل.س",
+            ),
+            payload={
+                "type": "cash_transfer",
+                "number": data.get('number'),
+                "cash_type": data.get('cash_type'),
+                "amount": amount,
+                "commission": commission,
+                "total": total,
+                "reserved": total,
+            }
         )
         msg_admin = bot.send_message(ADMIN_MAIN_ID, message, reply_markup=kb_admin)
         user_states[user_id]["admin_message_id"] = msg_admin.message_id
@@ -346,5 +374,3 @@ def register(bot, history):
         except Exception as e:
             logging.error(f"[CASH][ADMIN] خطأ في رفض التحويل: {e}", exc_info=True)
             bot.send_message(call.message.chat.id, f"❌ حدث خطأ: {e}")
-
-# نهاية الملف
