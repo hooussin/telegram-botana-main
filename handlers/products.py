@@ -241,3 +241,11 @@ def setup_inline_handlers(bot, admin_ids):
         )
         process_queue(bot)   # ← هذا السطر مهم جداً!
 
+def register(bot, history):
+    """
+    تستدعى من main.py لتسجيل جميع هاندلرات products
+    """
+    # تسجيل الهاندلرات للرسائل
+    register(bot, history)
+    # تسجيل الهاندلرات للكولباك
+    setup_inline_handlers(bot, admin_ids=[])
