@@ -222,7 +222,7 @@ def register(bot):
             reply_markup=_confirm_inline_kb()
         )
 
-    # إرسال الطلب إلى طابور الأدمن
+    # إرسال الطلب إلى طابور الأدمن مع حجز المبلغ
     @bot.callback_query_handler(func=lambda c: c.data == CB_CONFIRM)
     def cb_confirm(call):
         user_id = call.from_user.id
@@ -230,15 +230,15 @@ def register(bot):
         if not st or st.get("step") != "confirm":
             return bot.answer_callback_query(call.id, "انتهت صلاحية هذا الطلب.", show_alert=True)
 
-        price = st["price"]
-        # منع العمليات المتزامنة إن كان هناك طلب قيد الانتظار
+        # منع الطلبات المتزامنة
         existing = get_table("pending_requests").select("id").eq("user_id", user_id).execute()
         if getattr(existing, 'data', None):
             return bot.answer_callback_query(call.id, "❌ لديك طلب قيد الانتظار، الرجاء الانتظار حتى الانتهاء.", show_alert=True)
+
+        price = st["price"]
         comm  = calculate_commission(price)
         total = price + comm
 
-        # 1) تحقق فوري من الرصيد قبل الطابور
         balance = get_balance(user_id)
         if balance < total:
             missing = total - balance
@@ -248,7 +248,9 @@ def register(bot):
                 show_alert=True
             )
 
-        # 2) نص طلب الأدمن مع تضمين الرصيد اللحظي
+        # حجز الرصيد
+        deduct_balance(user_id, total)
+
         adm_txt = (
             "📥 *طلب جديد (إنترنت)*\n"
             f"المستخدم: {user_id}\n"
@@ -259,9 +261,6 @@ def register(bot):
             f"المبلغ: {price:,} + عمولة {comm:,} = {total:,} ل.س"
         )
 
-        # 3) دفع الطلب للطابور
-        # حجز المبلغ فور إضافة الطلب للطابور
-        deduct_balance(user_id, total)
         add_pending_request(
             user_id=user_id,
             username=call.from_user.username,
@@ -279,7 +278,6 @@ def register(bot):
         )
         process_queue(bot)
 
-        # 4) رسالة موحدة للمستخدم
         bot.answer_callback_query(call.id, "✅ تم إرسال طلبك للإدارة، بانتظار الموافقة.")
         bot.edit_message_text(
             chat_id=call.message.chat.id,
