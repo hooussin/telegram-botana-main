@@ -1,10 +1,4 @@
-from services.queue_service import (
-    add_pending_request,
-    process_queue,
-    delete_pending_request,
-    postpone_request,
-    queue_cooldown_start,
-)
+from services.queue_service import add_pending_request, process_queue, delete_pending_request
 import logging
 import json
 import os
@@ -21,6 +15,13 @@ from services.wallet_service import (
     add_purchase,
     add_balance,
     get_balance,
+)
+from services.queue_service import (
+    add_pending_request,
+    delete_pending_request,
+    process_queue,
+    postpone_request,
+    queue_cooldown_start,
 )
 from services.cleanup_service import delete_inactive_users
 from services.recharge_service import validate_recharge_code
@@ -102,38 +103,25 @@ def register(bot, history):
 
         elif action == "accept":
             typ = payload.get("type")
-
             if typ in ("syr_unit", "mtn_unit"):
                 price = payload.get("price", 0)
-                num   = payload.get("number")
-                name  = payload.get("unit_name")
+                num = payload.get("number")
+                name = payload.get("unit_name")
                 deduct_balance(user_id, price)
                 add_purchase(user_id, price, name, price, num)
-                bot.send_message(
-                    user_id,
-                    f"✅ تم تحويل {name} بنجاح إلى {num}.\n"
-                    f"تم خصم {price:,} ل.س من محفظتك.",
-                    parse_mode="HTML"
-                )
-
+                bot.send_message(user_id, f"✅ تم تحويل {name} بنجاح إلى {num}.\nتم خصم {price:,} ل.س.", parse_mode="HTML")
             elif typ in ("syr_bill", "mtn_bill"):
                 total = payload.get("total", 0)
-                num   = payload.get("number")
-                label = "فاتورة سيرياتيل" if typ == "syr_bill" else "فاتورة MTN"
+                num = payload.get("number")
+                label = "فاتورة سيرياتيل" if typ=="syr_bill" else "فاتورة MTN"
                 deduct_balance(user_id, total)
                 add_purchase(user_id, total, label, total, num)
-                bot.send_message(
-                    user_id,
-                    f"✅ تم دفع {label} للرقم {num}.\n"
-                    f"تم خصم {total:,} ل.س من محفظتك.",
-                    parse_mode="HTML"
-                )
-
+                bot.send_message(user_id, f"✅ تم دفع {label} للرقم {num}.\nتم خصم {total:,} ل.س.", parse_mode="HTML")
             elif typ == "internet":
-                total    = payload.get("total", 0)
+                total = payload.get("total", 0)
                 provider = payload.get("provider")
-                speed    = payload.get("speed")
-                phone    = payload.get("phone")
+                speed = payload.get("speed")
+                phone = payload.get("phone")
                 deduct_balance(user_id, total)
                 add_purchase(
                     user_id,
@@ -148,15 +136,14 @@ def register(bot, history):
                     f"تم خصم {total:,} ل.س من محفظتك.",
                     parse_mode="HTML"
                 )
-
             delete_pending_request(request_id)
             bot.answer_callback_query(call.id, "✅ تم تنفيذ العملية")
             queue_cooldown_start(bot)
 
         else:
-            bot.answer_callback_query(call.id, "❌ حدث خطأ غير متوقع.")
+            bot.answer_callback_query(call.id, "❌ حدث خطأ.")
 
-        # الإجرائات الإضافية لإلغاء أو قبول مع رسائل لاحقة
+        # الإجرائات الإضافية لو تكررت الأكشنات، احفظها ضمن else لو لزم الأمر
         if action == "cancel":
             bot.answer_callback_query(call.id, "🚫 يرجى كتابة سبب الإلغاء أو إرسال صورة (سيتم إرساله للعميل):")
             _cancel_pending[call.from_user.id] = {"request_id": request_id, "user_id": user_id}
@@ -167,28 +154,29 @@ def register(bot, history):
             )
 
         elif action == "accept":
+            # استخراج السعر والمنتج وplayer_id من نص الطلب
             text = req.get("request_text", "")
             m_price = re.search(r"💵 السعر: ([\d,]+) ل\.س", text)
-            price   = int(m_price.group(1).replace(",", "")) if m_price else 0
-            m_prod  = re.search(r"🔖 المنتج: (.+)", text)
+            price = int(m_price.group(1).replace(",", "")) if m_price else 0
+            m_prod = re.search(r"🔖 المنتج: (.+)", text)
             product_name = m_prod.group(1) if m_prod else ""
             m_player = re.search(r"آيدي اللاعب: <code>(.+?)</code>", text)
-            player_id   = m_player.group(1) if m_player else ""
+            player_id = m_player.group(1) if m_player else ""
 
+            # التحقق من الرصيد مجدداً قبل الخصم
             balance = get_balance(user_id)
             if balance < price:
-                bot.send_message(call.message.chat.id,
-                    f"❌ لا يوجد رصيد كافٍ لدى العميل (الرصيد: {balance:,} ل.س). الطلب تم حذفه."
-                )
+                bot.send_message(call.message.chat.id, f"❌ لا يوجد رصيد كافٍ لدى العميل (الرصيد: {balance:,} ل.س). الطلب تم حذفه.")
                 bot.send_message(
                     user_id,
-                    "❌ عذراً، لم يتم تنفيذ طلبك بسبب عدم كفاية الرصيد."
+                    f"❌ عذراً، لم يتم تنفيذ طلبك بسبب عدم كفاية الرصيد."
                 )
                 delete_pending_request(request_id)
                 pending_orders.discard(user_id)
                 queue_cooldown_start(bot)
                 return
 
+            # إضافة الشراء في سجل المشتريات (يخصم تلقائياً بعد الموافقة)
             m_pid = re.search(r"select_(\d+)", text)
             product_id = int(m_pid.group(1)) if m_pid else 0
             add_purchase(user_id, product_id, product_name, price, player_id)
@@ -197,6 +185,7 @@ def register(bot, history):
             delete_pending_request(request_id)
             bot.answer_callback_query(call.id, "✅ تم قبول وتنفيذ الطلب.")
 
+            # إعلام العميل أن الطلب تم تنفيذه مع الخصم
             bot.send_message(
                 user_id,
                 f"✅ تم تنفيذ طلبك: {product_name}\nتم خصم {price:,} ل.س من محفظتك."
@@ -267,6 +256,7 @@ def register(bot, history):
             bot.send_message(msg.chat.id, "❌ نوع الرسالة غير مدعوم.")
         _accept_pending.pop(msg.from_user.id, None)
 
+    # ========== شحن المحفظة ==========
     @bot.callback_query_handler(func=lambda call: call.data.startswith("confirm_add_"))
     def confirm_wallet_add(call):
         _, _, user_id_str, amount_str = call.data.split("_")
@@ -283,4 +273,75 @@ def register(bot, history):
     def reject_wallet_add(call):
         user_id = int(call.data.split("_")[-1])
         bot.send_message(call.message.chat.id, "📝 اكتب سبب الرفض:")
-        bot.
+        bot.register_next_step_handler_by_chat_id(
+            call.message.chat.id,
+            lambda m: process_rejection(m, user_id, call),
+        )
+
+    def process_rejection(msg, user_id, call):
+        reason = msg.text.strip()
+        bot.send_message(
+            user_id,
+            f"❌ تم رفض عملية الشحن.\n📝 السبب: {reason}"
+        )
+        bot.answer_callback_query(call.id, "❌ تم رفض العملية")
+        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+        clear_pending_request(user_id)
+
+    # ========== تقرير الأكواد ==========
+    @bot.message_handler(commands=["تقرير_الوكلاء"])
+    def generate_report(msg):
+        if msg.from_user.id not in ADMINS:
+            return
+        data = load_code_operations()
+        if not data:
+            bot.send_message(msg.chat.id, "📭 لا توجد أي عمليات عبر الأكواد.")
+            return
+        report = "📊 تقرير عمليات الأكواد:\n"
+        for code, ops in data.items():
+            report += f"\n🔐 الكود: `{code}`\n"
+            for entry in ops:
+                report += f"▪️ {entry['amount']:,} ل.س | {entry['date']} | {entry['user']}\n"
+        bot.send_message(msg.chat.id, report, parse_mode="Markdown")
+
+    # ========== وكلاء ==========
+    @bot.message_handler(func=lambda m: m.text == "🏪 وكلائنا")
+    def handle_agents_entry(msg):
+        kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        kb.add("⬅️ رجوع", "✅ متابعة")
+        bot.send_message(
+            msg.chat.id,
+            "🏪 وكلاؤنا:\n\n"
+            "📍 دمشق - ريف دمشق – قدسيا – صالة الببجي الاحترافية - 090000000\n"
+            "📍 دمشق - الزاهرة الجديدة – محل الورد - 09111111\n"
+            "📍 قدسيا – الساحة - 092000000\n\n"
+            "✅ اضغط (متابعة) إذا كنت تملك كودًا سريًا من وكيل.",
+            reply_markup=kb,
+        )
+
+    @bot.message_handler(func=lambda m: m.text == "✅ متابعة")
+    def ask_for_secret_code(msg):
+        bot.send_message(msg.chat.id, "🔐 أدخل الكود السري:")
+        bot.register_next_step_handler(msg, verify_code)
+
+    def verify_code(msg):
+        code = msg.text.strip()
+        if code not in VALID_SECRET_CODES:
+            bot.send_message(msg.chat.id, "❌ كود غير صحيح.")
+            return
+        bot.send_message(msg.chat.id, "💰 أدخل المبلغ:")
+        bot.register_next_step_handler(msg, lambda m: confirm_amount(m, code))
+
+    def confirm_amount(msg, code):
+        amount = int(msg.text.strip())
+        user_id = msg.from_user.id
+        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+        ops = load_code_operations()
+        ops.setdefault(code, []).append({"user": msg.from_user.first_name, "amount": amount, "date": now})
+        save_code_operations(ops)
+        register_user_if_not_exist(user_id)
+        add_balance(user_id, amount)
+        bot.send_message(msg.chat.id, f"✅ تم تحويل {amount:,} ل.س إلى محفظتك.")
+        admin_msg = f"✅ شحن {amount:,} ل.س للمستخدم `{user_id}` عبر كود `{code}`"
+        add_pending_request(user_id, msg.from_user.username, admin_msg)
+        process_queue(bot)
