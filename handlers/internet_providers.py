@@ -260,7 +260,7 @@ def register(bot):
             f"رقم: `{st['phone']}`\n"
             f"المبلغ: {price:,} + عمولة {comm:,} = {total:,} ل.س"
         )
-
+        print(f"[DEBUG] Adding pending request with reserved amount: {total}")
         add_pending_request(
             user_id=user_id,
             username=call.from_user.username,
