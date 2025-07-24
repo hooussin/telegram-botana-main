@@ -130,16 +130,19 @@ def register(bot, history):
                 )
                 delete_pending_request(request_id)
             elif typ == "internet":
-                reserved = payload.get("reserved", 0)
-                provider = payload.get("provider")
-                speed = payload.get("speed")
-                phone = payload.get("phone")
+                reserved  = payload.get("reserved", 0)
+                provider  = payload.get("provider")
+                speed     = payload.get("speed")
+                phone     = payload.get("phone")
                 # لا نخصم مرة ثانية لأن الحجز تم مسبقًا
                 add_purchase(user_id, reserved, f"إنترنت {provider} {speed}", reserved, phone)
-                bot.send_message(user_id, f"✅ تم شحن إنترنت {provider} بسرعة {speed} للرقم {phone}.
-تم خصم {reserved:,} ل.س.", parse_mode="HTML")
+                bot.send_message(
+                    user_id,
+                    f"✅ تم شحن إنترنت {provider} بسرعة {speed} للرقم {phone}.\n"
+                    f"تم خصم {reserved:,} ل.س.",
+                    parse_mode="HTML"
+                )
                 delete_pending_request(request_id)
-
             
             bot.answer_callback_query(call.id, "✅ تم تنفيذ العملية")
             queue_cooldown_start(bot)
