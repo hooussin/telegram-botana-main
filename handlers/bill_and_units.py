@@ -316,6 +316,7 @@ def register_bill_and_units(bot, history):
             f"💵 {state['unit']['name']}\n"
             f"💰 {price:,} ل.س"
         )
+        print(f"[DEBUG] Adding pending syr unit request with reserved amount: {price}")
         add_pending_request(
             user_id=user_id,
             username=call.from_user.username,
